@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mainHelp, modeHelp, modeList } from "../src/help.js";
 import { main } from "../src/main.js";
 import { findMode } from "../src/modes/registry.js";
+import { copyMode } from "./support/copy-mode.mjs";
 import { makeFolder } from "./support/folders.js";
 
 const projectFolder = process.cwd();
@@ -18,22 +19,28 @@ const { version } = JSON.parse(
 ) as { version: string };
 let workFolder = "";
 
-beforeEach(async () => {
+beforeEach(() => {
   workFolder = makeFolder(["photo.heic", "photo.jpg", "clip.mov", "clip.mp4"]);
   process.chdir(workFolder);
 });
 
-afterEach(async () => {
+afterEach(() => {
   process.chdir(projectFolder);
 });
 
 async function run(...args: string[]) {
   let stdout = "";
   let stderr = "";
-  const exitCode = await main(args, {
-    out: (text) => (stdout += text),
-    err: (text) => (stderr += text),
-  });
+  const exitCode = await main(
+    args,
+    {
+      out: (text) => (stdout += text),
+      err: (text) => (stderr += text),
+      errIsTerminal: false,
+      colours: { out: false, err: false },
+    },
+    { extraModes: [copyMode] },
+  );
   return { exitCode, stdout, stderr };
 }
 
@@ -50,7 +57,7 @@ async function expectFailure(args: string[], ...messageParts: string[]) {
 
 const commandShape = "konvertoj -m <mode> <input> -o <output> [options]";
 
-describe("main", async () => {
+describe("main", () => {
   it("shows the help screen with no arguments", async () => {
     expect(await run()).toEqual({
       exitCode: 0,
@@ -305,5 +312,68 @@ describe("main", async () => {
       "Warning: -o new.png ends in .png, but heictojpg makes JPG files. Saving as new.jpg.\n",
     );
     expect(result.stdout).toBe("photo.heic → new.jpg\n");
+  });
+  it("runs a mode and reports one success with a summary", async () => {
+    makeFiles(["notes.txt"]);
+    const result = await run("-m", "copy", "notes.txt");
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toMatch(
+      /^✓ notes\.txt → notes-copy\.txt {2}9 B → 9 B\nDone in \d+\.\ds: 1 converted, 0 failed, 0 skipped\. 9 B → 9 B \(0%\)\.\n$/,
+    );
+    expect(readFileSync(path.join(workFolder, "notes-copy.txt"), "utf8")).toBe(
+      "notes.txt",
+    );
+  });
+
+  it("prints nothing on success with --quiet", async () => {
+    makeFiles(["notes.txt"]);
+    expect(await run("-m", "copy", "notes.txt", "--quiet")).toEqual({
+      exitCode: 0,
+      stdout: "",
+      stderr: "",
+    });
+  });
+
+  it("prints only failures with --quiet", async () => {
+    makeFiles(["notes.txt", "fail.txt"]);
+    expect(await run("-m", "copy", "notes.txt", "fail.txt", "-q")).toEqual({
+      exitCode: 2,
+      stdout: "",
+      stderr: "✗ fail.txt: couldn't be copied because its name says fail\n",
+    });
+  });
+
+  it("shows the technical error with --verbose", async () => {
+    makeFiles(["crash.txt"]);
+    const result = await run("-m", "copy", "crash.txt", "--verbose");
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain(
+      "✗ crash.txt: couldn't be converted because of an unexpected problem. Run again with --verbose for details.\n    Error: boom",
+    );
+    expect(result.stderr).toMatch(/^ {8}at /m);
+  });
+
+  it("hides the technical error without --verbose", async () => {
+    makeFiles(["crash.txt"]);
+    const result = await run("-m", "copy", "crash.txt");
+    expect(result.stderr).not.toContain("boom");
+    expect(result.stderr).not.toMatch(/^ +at /m);
+  });
+
+  it("rejects --quiet with --verbose", async () => {
+    makeFiles(["notes.txt"]);
+    await expectFailure(
+      ["-m", "copy", "notes.txt", "-q", "-v"],
+      "Use either --quiet or --verbose, not both.",
+    );
+  });
+
+  it("says an unbuilt mode isn't available without creating the -o folder", async () => {
+    await expectFailure(
+      ["-m", "heictojpg", "photo.heic", "-o", "converted/"],
+      "heictojpg isn't available yet.",
+    );
+    expect(existsSync(path.join(workFolder, "converted"))).toBe(false);
   });
 });

@@ -9,8 +9,12 @@ import {
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { InputError } from "../src/inputs.js";
-import { prepareOutputFolders, writeOutputFile } from "../src/output-files.js";
+import { UserError } from "../src/errors.js";
+import {
+  pendingTemporaryFiles,
+  prepareOutputFolders,
+  writeOutputFile,
+} from "../src/output-files.js";
 import { cannotTestPermissions, makeFolder } from "./support/folders.js";
 
 const lockedPaths: string[] = [];
@@ -43,8 +47,8 @@ describe("prepareOutputFolders", () => {
         [{ inputs: [], output: path.join(locked, "a.jpg") }],
         cwd,
       ).catch((caught: unknown) => caught);
-      expect(error).toBeInstanceOf(InputError);
-      expect((error as InputError).message).toBe(
+      expect(error).toBeInstanceOf(UserError);
+      expect((error as UserError).message).toBe(
         "Can't write to locked. Choose another folder with -o.",
       );
     },
@@ -123,5 +127,23 @@ describe("writeOutputFile", () => {
       modified: statSync(input).mtimeMs,
     }).toEqual(before);
     expect(existsSync(path.join(cwd, "photo.jpg"))).toBe(true);
+  });
+  it("forgets temporary files once they're renamed or removed", async () => {
+    const cwd = makeFolder();
+    await writeOutputFile(
+      path.join(cwd, "a.jpg"),
+      (temporaryPath) => writeFile(temporaryPath, "a"),
+      {
+        overwrite: false,
+      },
+    );
+    await writeOutputFile(
+      path.join(cwd, "b.jpg"),
+      async () => {
+        throw new Error("disk full");
+      },
+      { overwrite: false },
+    ).catch(() => undefined);
+    expect(pendingTemporaryFiles.size).toBe(0);
   });
 });

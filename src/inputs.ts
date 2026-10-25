@@ -2,9 +2,8 @@ import fg from "fast-glob";
 import fs from "node:fs";
 import { open, stat } from "node:fs/promises";
 import path from "node:path";
+import { UserError } from "./errors.js";
 import { commandShape } from "./help.js";
-
-export class InputError extends Error {}
 
 export interface InputFile {
   path: string;
@@ -94,7 +93,7 @@ export async function resolveInputs(
   options: { recursive: boolean; cwd: string },
 ): Promise<ResolvedInputs> {
   if (args.length === 0) {
-    throw new InputError(`No input files given.\n\nUsage: ${commandShape}`);
+    throw new UserError(`No input files given.\n\nUsage: ${commandShape}`);
   }
 
   const found: InputFile[] = [];
@@ -131,7 +130,7 @@ export async function resolveInputs(
   }
 
   if (problems.length > 0) {
-    throw new InputError(problems.join("\n"));
+    throw new UserError(problems.join("\n"));
   }
 
   const seen = new Set<string>();

@@ -2,8 +2,10 @@ import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { InputError } from "./inputs.js";
+import { UserError } from "./errors.js";
 import type { PlannedItem } from "./outputs.js";
+
+export const pendingTemporaryFiles = new Set<string>();
 
 function randomName(): string {
   return randomBytes(6).toString("hex");
@@ -23,7 +25,7 @@ export async function prepareOutputFolders(
       await writeFile(testFile, "");
       await rm(testFile);
     } catch {
-      throw new InputError(
+      throw new UserError(
         `Can't write to ${path.relative(cwd, folder) || "."}. Choose another folder with -o.`,
       );
     }
@@ -49,6 +51,7 @@ export async function writeOutputFile(
     dir,
     `.${base}.${randomName()}.konvertoj-tmp`,
   );
+  pendingTemporaryFiles.add(temporaryPath);
   try {
     await write(temporaryPath);
     const savedPath = options.overwrite ? finalPath : nextFreeName(finalPath);
@@ -57,5 +60,7 @@ export async function writeOutputFile(
   } catch (error) {
     await rm(temporaryPath, { force: true });
     throw error;
+  } finally {
+    pendingTemporaryFiles.delete(temporaryPath);
   }
 }

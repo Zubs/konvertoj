@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { InputError, type InputFile } from "./inputs.js";
+import { UserError } from "./errors.js";
+import type { InputFile } from "./inputs.js";
 import { extensionsFor, formatLabels } from "./modes/formats.js";
 import type { Mode } from "./modes/registry.js";
 
@@ -133,7 +134,7 @@ export function planOutputs(
       isFolder(target) ||
       /[/\\]$/.test(options.output ?? ""));
   if (targetIsFolder && fs.existsSync(target) && !isFolder(target)) {
-    throw new InputError(
+    throw new UserError(
       `-o ${options.output} is a file, but -o must be a folder when there are several inputs. Choose a folder name, e.g. -o converted.`,
     );
   }

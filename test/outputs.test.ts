@@ -1,7 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { InputError, resolveInputs } from "../src/inputs.js";
+import { UserError } from "../src/errors.js";
+import { resolveInputs } from "../src/inputs.js";
 import { findMode } from "../src/modes/registry.js";
 import { planOutputs } from "../src/outputs.js";
 import { makeFolder } from "./support/folders.js";
@@ -148,8 +149,8 @@ describe("planOutputs", () => {
     const error = await plan(cwd, "heictojpg", ["a.heic", "b.heic"], {
       output: "notes.txt",
     }).catch((caught: unknown) => caught);
-    expect(error).toBeInstanceOf(InputError);
-    expect((error as InputError).message).toContain(
+    expect(error).toBeInstanceOf(UserError);
+    expect((error as UserError).message).toContain(
       "-o must be a folder when there are several inputs",
     );
   });
