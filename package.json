@@ -18,7 +18,8 @@
     "format": "prettier --write .",
     "check": "tsc --noEmit && eslint .",
     "test": "vitest run",
-    "build": "tsc -p tsconfig.build.json"
+    "build": "tsc -p tsconfig.build.json",
+    "docs": "npm run build && node scripts/update-readme.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

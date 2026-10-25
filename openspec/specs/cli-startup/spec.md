@@ -13,13 +13,6 @@ The built entry point `dist/cli.js` SHALL begin with the line `#!/usr/bin/env no
 - **WHEN** the project is built
 - **THEN** the first line of `dist/cli.js` is exactly `#!/usr/bin/env node`
 
-### Requirement: Clean start with nothing to do
-Until command-line features exist, running the entry point on a supported Node.js version SHALL exit with code `0` and print no errors.
-
-#### Scenario: Running the built entry point
-- **WHEN** a user runs `node dist/cli.js` on Node.js 22 or newer
-- **THEN** it exits with code `0` and writes nothing to standard error
-
 ### Requirement: Node.js version check
 On a Node.js version older than 22, the entry point SHALL print `konvertoj needs Node.js 22 or newer` with the version in use and how to fix it, and exit with code `1`, instead of failing with a stack trace.
 
