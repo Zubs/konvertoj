@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import { parseArgs, type ParseArgsOptionsConfig } from "node:util";
 import { commandShape, mainHelp, modeHelp, modeList } from "./help.js";
 import { describeRule, followsRule } from "./modes/options.js";
@@ -9,6 +10,7 @@ import {
   type Mode,
 } from "./modes/registry.js";
 import { suggestMode } from "./modes/suggest.js";
+import type { OutputPlan } from "./outputs.js";
 
 export interface Output {
   out(text: string): void;
@@ -99,8 +101,8 @@ function optionProblem(
   return undefined;
 }
 
-export function main(args: string[], output: Output): number {
-  const { values, tokens } = parseArgs({
+export async function main(args: string[], output: Output): Promise<number> {
+  const { values, positionals, tokens } = parseArgs({
     args,
     options: parseOptions,
     strict: false,
@@ -150,5 +152,50 @@ export function main(args: string[], output: Output): number {
   if (problem) {
     return fail(problem);
   }
+
+  const { InputError, resolveInputs } = await import("./inputs.js");
+  const { planOutputs } = await import("./outputs.js");
+  const cwd = process.cwd();
+  let plan: OutputPlan;
+  try {
+    const resolved = await resolveInputs(positionals, {
+      recursive: values.recursive === true,
+      cwd,
+    });
+    plan = planOutputs(mode, resolved.inputs, {
+      output: typeof values.output === "string" ? values.output : undefined,
+      overwrite: values.overwrite === true,
+      cwd,
+    });
+    plan.warnings.unshift(...resolved.warnings);
+  } catch (error) {
+    if (error instanceof InputError) {
+      return fail(error.message);
+    }
+    throw error;
+  }
+
+  for (const warning of plan.warnings) {
+    output.err(`Warning: ${warning}\n`);
+  }
+  if (values["dry-run"]) {
+    output.out(`${dryRunLines(plan, cwd).join("\n")}\n`);
+    return 0;
+  }
   return fail(`${mode.name} isn't available yet.`);
+}
+
+function dryRunLines(plan: OutputPlan, cwd: string): string[] {
+  return plan.items.flatMap((item) =>
+    item.inputs.map((input) => {
+      const from = path.relative(cwd, input.path);
+      if (input.unreadable) {
+        return `${from} → can't be read (${input.unreadable})`;
+      }
+      if (!item.output) {
+        return `${from} → (prints details, no file)`;
+      }
+      return `${from} → ${path.relative(cwd, item.output)}`;
+    }),
+  );
 }

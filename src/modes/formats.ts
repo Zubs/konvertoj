@@ -48,6 +48,16 @@ export const formatLabels: Record<string, string> = {
   flac: "FLAC",
 };
 
+export const extensionAliases: Record<string, string[]> = {
+  jpg: ["jpg", "jpeg", "jfif", "jpe"],
+  tiff: ["tif", "tiff"],
+  heic: ["heic", "heif"],
+};
+
+export function extensionsFor(format: string): string[] {
+  return extensionAliases[format] ?? [format];
+}
+
 export const sampleFiles: Record<string, string> = {
   jpg: "photo.jpg",
   png: "image.png",

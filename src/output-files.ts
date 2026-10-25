@@ -1,0 +1,61 @@
+import { randomBytes } from "node:crypto";
+import fs from "node:fs";
+import { mkdir, rename, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { InputError } from "./inputs.js";
+import type { PlannedItem } from "./outputs.js";
+
+function randomName(): string {
+  return randomBytes(6).toString("hex");
+}
+
+export async function prepareOutputFolders(
+  items: PlannedItem[],
+  cwd: string,
+): Promise<void> {
+  const folders = new Set(
+    items.flatMap((item) => (item.output ? [path.dirname(item.output)] : [])),
+  );
+  for (const folder of folders) {
+    const testFile = path.join(folder, `.konvertoj-write-test-${randomName()}`);
+    try {
+      await mkdir(folder, { recursive: true });
+      await writeFile(testFile, "");
+      await rm(testFile);
+    } catch {
+      throw new InputError(
+        `Can't write to ${path.relative(cwd, folder) || "."}. Choose another folder with -o.`,
+      );
+    }
+  }
+}
+
+function nextFreeName(wanted: string): string {
+  const { dir, name, ext } = path.parse(wanted);
+  let candidate = wanted;
+  for (let number = 1; fs.existsSync(candidate); number++) {
+    candidate = path.join(dir, `${name} (${number})${ext}`);
+  }
+  return candidate;
+}
+
+export async function writeOutputFile(
+  finalPath: string,
+  write: (temporaryPath: string) => Promise<void>,
+  options: { overwrite: boolean },
+): Promise<string> {
+  const { dir, base } = path.parse(finalPath);
+  const temporaryPath = path.join(
+    dir,
+    `.${base}.${randomName()}.konvertoj-tmp`,
+  );
+  try {
+    await write(temporaryPath);
+    const savedPath = options.overwrite ? finalPath : nextFreeName(finalPath);
+    await rename(temporaryPath, savedPath);
+    return savedPath;
+  } catch (error) {
+    await rm(temporaryPath, { force: true });
+    throw error;
+  }
+}

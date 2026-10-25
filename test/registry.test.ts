@@ -210,4 +210,24 @@ describe("mode registry", () => {
       }
     }
   });
+  it("declares a suffix for every tool that keeps the format", () => {
+    const keepsFormat = modes.filter((mode) => mode.output === "same");
+    expect(keepsFormat.length).toBeGreaterThan(0);
+    for (const mode of keepsFormat) {
+      expect(mode.outputSuffix, mode.name).toMatch(/^[a-z]+$/);
+    }
+    expect(findMode("compress")?.outputSuffix).toBe("compressed");
+  });
+
+  it("marks only the images-to-PDF modes as combining their inputs", () => {
+    const combining = modes
+      .filter((mode) => mode.combinesInputs)
+      .map((mode) => mode.name);
+    expect(combining).toHaveLength(11);
+    expect(combining).toEqual(
+      expect.arrayContaining(["jpgtopdf", "heictopdf", "topdf"]),
+    );
+    expect(findMode("pdftopng")?.combinesInputs).toBeUndefined();
+    expect(findMode("heictojpg")?.combinesInputs).toBeUndefined();
+  });
 });

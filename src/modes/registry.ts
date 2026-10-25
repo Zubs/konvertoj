@@ -71,6 +71,8 @@ export interface Mode {
   options: OptionDefinition[];
   description: string;
   examples: string[];
+  outputSuffix?: string;
+  combinesInputs?: true;
 }
 
 const anyImageLabel = "any image";
@@ -159,6 +161,7 @@ function pdfModes(): Mode[] {
     group: "PDF" as const,
     inputs: [from],
     output: "pdf",
+    combinesInputs: true as const,
     options: pdfOptions,
     description: `Turn ${label(from)} images into one PDF`,
     examples: [
@@ -171,6 +174,7 @@ function pdfModes(): Mode[] {
     group: "PDF" as const,
     inputs: imageInputs,
     output: "pdf",
+    combinesInputs: true as const,
     options: pdfOptions,
     description: `Turn ${anyImageLabel} files into one PDF`,
     examples: ["konvertoj -m topdf ./receipts -o receipts"],
@@ -263,6 +267,7 @@ function toolModes(): Mode[] {
       name: "compress",
       inputs: ["jpg", "png", "webp", "avif", "gif"],
       output: "same",
+      outputSuffix: "compressed",
       options: [compressQuality, level, targetSize],
       description: "Make images smaller while keeping them looking good",
       examples: [
@@ -274,6 +279,7 @@ function toolModes(): Mode[] {
       name: "resize",
       inputs: imageOutputs,
       output: "same",
+      outputSuffix: "resized",
       options: [width, height, resizeScale, fit, noEnlarge],
       description: "Change an image's width and height",
       examples: [
@@ -285,6 +291,7 @@ function toolModes(): Mode[] {
       name: "enlarge",
       inputs: imageOutputs,
       output: "same",
+      outputSuffix: "enlarged",
       options: [enlargeScale],
       description: "Upscale an image to 2x or 4x its size",
       examples: [
@@ -296,6 +303,7 @@ function toolModes(): Mode[] {
       name: "crop",
       inputs: imageOutputs,
       output: "same",
+      outputSuffix: "cropped",
       options: [width, height, left, top, position, aspect, trim],
       description:
         "Cut an image to an area, a position or an aspect ratio, or trim plain borders",
@@ -309,6 +317,7 @@ function toolModes(): Mode[] {
       name: "rotate",
       inputs: imageOutputs,
       output: "same",
+      outputSuffix: "rotated",
       options: [angle, auto, rotateBackground],
       description:
         "Turn an image by any angle, or upright using its orientation tag",
@@ -321,6 +330,7 @@ function toolModes(): Mode[] {
       name: "flip",
       inputs: imageOutputs,
       output: "same",
+      outputSuffix: "flipped",
       options: [direction],
       description: "Mirror an image horizontally or vertically",
       examples: ["konvertoj -m flip selfie.jpg --direction horizontal"],
@@ -329,6 +339,7 @@ function toolModes(): Mode[] {
       name: "strip",
       inputs: ["jpg", "png", "webp", "avif", "tiff"],
       output: "same",
+      outputSuffix: "stripped",
       options: [],
       description: "Remove camera, date and location details from images",
       examples: ["konvertoj -m strip ./holiday -o ./to-share"],
