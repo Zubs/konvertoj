@@ -1,0 +1,32 @@
+{
+  "name": "konvertoj",
+  "version": "0.0.0",
+  "description": "Convert and edit images, PDFs, video and audio locally and privately from the command line.",
+  "license": "MIT",
+  "author": "Zubs <zubair.idris.aweda@gmail.com>",
+  "type": "module",
+  "bin": {
+    "konvertoj": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "format": "prettier --write .",
+    "check": "tsc --noEmit && eslint .",
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "eslint": "^10.13.0",
+    "prettier": "^3.9.10",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.0",
+    "vitest": "^5.0.5"
+  }
+}
