@@ -10,7 +10,7 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 
 - [x] 1. Project setup
 - [x] 2. Command-line basics
-- [ ] 3. Inputs and output naming
+- [x] 3. Inputs and output naming
 - [ ] 4. Batch runner and reporting
 - [ ] 5. Format detection
 - [ ] 6. Core image conversion

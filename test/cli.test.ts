@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
+import { makeFolder } from "./support/folders.js";
 
 const cliPath = path.join("dist", "cli.js");
 
@@ -58,5 +59,19 @@ describe("built cli", () => {
         true,
       );
     }
+  });
+  it("expands a quoted pattern itself", () => {
+    const folder = makeFolder(["a.heic", "b.heic", "c.png"]);
+    const result = runCli([
+      "-m",
+      "heictojpg",
+      path.join(folder, "*.heic"),
+      "--dry-run",
+    ]);
+    expect(result.status, result.stderr).toBe(0);
+    const lines = result.stdout.trim().split(/\r?\n/);
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toMatch(/a\.heic → .*a\.jpg$/);
+    expect(lines[1]).toMatch(/b\.heic → .*b\.jpg$/);
   });
 });
