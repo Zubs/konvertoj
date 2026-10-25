@@ -98,7 +98,7 @@ An option that exists for other modes but not the chosen one SHALL fail with exi
 - **THEN** it fails with exit code `1` and a plain-English message saying `--quality` needs a value, or `--overwrite` doesn't take one
 
 ### Requirement: Option values are checked
-A value outside its option's declared word list or range SHALL fail with exit code `1` before the mode runs. The message SHALL name the option, the value given, and the allowed words or range. Word matching SHALL ignore letter case. Options without a declared rule SHALL pass through unchecked.
+A value outside its option's declared word list or range SHALL fail with exit code `1` before the mode runs. The message SHALL name the option, the value given, and the allowed words or range. Word matching SHALL ignore letter case. Options without a declared rule SHALL pass through unchecked. Option values SHALL be checked before inputs, so a wrong value is reported even when the inputs are wrong too.
 
 #### Scenario: Word not allowed
 - **WHEN** a user runs `konvertoj -m resize photo.jpg --fit banana`
@@ -113,7 +113,7 @@ A value outside its option's declared word list or range SHALL fail with exit co
 - **THEN** it fails, saying `--fps` must be a whole number from 1 to 30
 
 #### Scenario: Valid values pass
-- **WHEN** a user runs `-m heictojpg photo.heic --quality 1`, `--quality 100`, or `-m movtomp4 clip.mov --quality HIGH`
+- **WHEN** a user runs `-m heictojpg photo.heic --quality 1`, `--quality 100`, or `-m movtomp4 clip.mov --quality HIGH`, with those files present
 - **THEN** none fails an option check, and each reaches the "isn't available yet" message
 
 #### Scenario: Same name, different rule
@@ -127,6 +127,10 @@ A value outside its option's declared word list or range SHALL fail with exit co
 #### Scenario: Unchecked values pass through
 - **WHEN** a user runs `-m heictojpg photo.heic --background banana`
 - **THEN** no option check fails, because `--background` has no declared rule (colours are checked by feature 6)
+
+#### Scenario: Option checked before inputs
+- **WHEN** a user runs `-m heictojpg missing.heic --quality 101` and `missing.heic` doesn't exist
+- **THEN** it fails with the `--quality` message, not the missing-file message
 
 ### Requirement: HEIC and SVG are input only
 A mode name asking to create HEIC or SVG (`<format>toheic`, `toheic`, `<format>tosvg`, `tosvg`, including the variants the suggestion matching accepts) SHALL fail with exit code `1`. The message SHALL say konvertoj can read that format but can't create it. When a mode with the same input and JPG (for HEIC) or PNG (for SVG) output exists, it SHALL suggest that mode.
@@ -148,11 +152,19 @@ A mode name asking to create HEIC or SVG (`<format>toheic`, `toheic`, `<format>t
 - **THEN** each gets the HEIC input-only message
 
 ### Requirement: Modes not built yet
-A valid command for a registered mode whose work isn't built yet SHALL fail with exit code `1` and say `<mode> isn't available yet.`
+A valid command for a registered mode whose work isn't built yet SHALL fail with exit code `1` and say `<mode> isn't available yet.` This SHALL happen after its inputs have been found and its outputs planned, so input mistakes are reported first, and SHALL NOT create any folders. `--dry-run` SHALL still print the plan and exit with `0`.
 
 #### Scenario: Running an unbuilt mode
-- **WHEN** a user runs `konvertoj -m heictojpg photo.heic` before HEIC conversion exists
+- **WHEN** a user runs `konvertoj -m heictojpg photo.heic` before HEIC conversion exists, and `photo.heic` exists
 - **THEN** it fails with exit code `1` and "heictojpg isn't available yet."
+
+#### Scenario: Input mistakes come first
+- **WHEN** a user runs `konvertoj -m heictojpg missing.heic` and the file doesn't exist
+- **THEN** it fails, naming `missing.heic`, without mentioning that the mode isn't available
+
+#### Scenario: Dry run of an unbuilt mode
+- **WHEN** a user runs `konvertoj -m heictojpg photo.heic --dry-run`
+- **THEN** it prints `photo.heic → photo.jpg` and exits with `0`
 
 ### Requirement: Errors are for people
 Every command-line error SHALL go to standard error as a plain-English message without a stack trace, and SHALL say how to fix the problem.
