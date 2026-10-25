@@ -6,10 +6,5 @@ if (versionMessage) {
   console.error(versionMessage);
   process.exitCode = 1;
 } else {
-  import("./main.js").then(async ({ main }) => {
-    process.exitCode = await main(process.argv.slice(2), {
-      out: (text) => process.stdout.write(text),
-      err: (text) => process.stderr.write(text),
-    });
-  });
+  import("./start.js").then(({ start }) => start(process.argv.slice(2)));
 }

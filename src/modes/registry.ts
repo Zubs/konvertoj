@@ -6,6 +6,7 @@ import {
   sampleFiles,
   videoInputs,
 } from "./formats.js";
+import type { InputFile } from "../inputs.js";
 import {
   angle,
   aspect,
@@ -73,6 +74,17 @@ export interface Mode {
   examples: string[];
   outputSuffix?: string;
   combinesInputs?: true;
+  run?: (context: RunContext) => Promise<{ skipped: string } | void>;
+}
+
+export interface RunContext {
+  inputs: InputFile[];
+  output: string;
+  options: Record<string, string | boolean | undefined>;
+  save(write: (temporaryPath: string) => Promise<void>): Promise<string>;
+  progress(fraction: number): void;
+  detail(message: string): void;
+  signal: AbortSignal;
 }
 
 const anyImageLabel = "any image";

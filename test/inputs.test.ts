@@ -1,7 +1,8 @@
 import { chmodSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { InputError, resolveInputs } from "../src/inputs.js";
+import { UserError } from "../src/errors.js";
+import { resolveInputs } from "../src/inputs.js";
 import { cannotTestPermissions, makeFolder } from "./support/folders.js";
 
 const lockedPaths: string[] = [];
@@ -21,8 +22,8 @@ async function failure(cwd: string, args: string[]) {
   const error = await resolveInputs(args, { recursive: false, cwd }).catch(
     (caught: unknown) => caught,
   );
-  expect(error).toBeInstanceOf(InputError);
-  return (error as InputError).message;
+  expect(error).toBeInstanceOf(UserError);
+  return (error as UserError).message;
 }
 
 describe("resolveInputs", () => {

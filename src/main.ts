@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { parseArgs, type ParseArgsOptionsConfig } from "node:util";
+import { isUserError } from "./errors.js";
 import { commandShape, mainHelp, modeHelp, modeList } from "./help.js";
 import { describeRule, followsRule } from "./modes/options.js";
 import {
@@ -11,10 +12,13 @@ import {
 } from "./modes/registry.js";
 import { suggestMode } from "./modes/suggest.js";
 import type { OutputPlan } from "./outputs.js";
+import { Reporter, type Output } from "./report.js";
 
-export interface Output {
-  out(text: string): void;
-  err(text: string): void;
+export type { Output } from "./report.js";
+
+export interface MainOptions {
+  extraModes?: Mode[];
+  signal?: AbortSignal;
 }
 
 const commandOptions: ParseArgsOptionsConfig = {
@@ -101,7 +105,11 @@ function optionProblem(
   return undefined;
 }
 
-export async function main(args: string[], output: Output): Promise<number> {
+export async function main(
+  args: string[],
+  output: Output,
+  { extraModes = [], signal = new AbortController().signal }: MainOptions = {},
+): Promise<number> {
   const { values, positionals, tokens } = parseArgs({
     args,
     options: parseOptions,
@@ -139,7 +147,9 @@ export async function main(args: string[], output: Output): Promise<number> {
     return fail(`-m needs a mode name, e.g. -m heictojpg.\n\n${usageHint}`);
   }
 
-  const mode = findMode(values.mode);
+  const modeName = values.mode;
+  const mode =
+    findMode(modeName) ?? extraModes.find((extra) => extra.name === modeName);
   if (!mode) {
     return fail(unknownModeMessage(values.mode));
   }
@@ -152,8 +162,11 @@ export async function main(args: string[], output: Output): Promise<number> {
   if (problem) {
     return fail(problem);
   }
+  if (values.quiet && values.verbose) {
+    return fail("Use either --quiet or --verbose, not both.");
+  }
 
-  const { InputError, resolveInputs } = await import("./inputs.js");
+  const { resolveInputs } = await import("./inputs.js");
   const { planOutputs } = await import("./outputs.js");
   const cwd = process.cwd();
   let plan: OutputPlan;
@@ -169,7 +182,7 @@ export async function main(args: string[], output: Output): Promise<number> {
     });
     plan.warnings.unshift(...resolved.warnings);
   } catch (error) {
-    if (error instanceof InputError) {
+    if (isUserError(error)) {
       return fail(error.message);
     }
     throw error;
@@ -182,7 +195,31 @@ export async function main(args: string[], output: Output): Promise<number> {
     output.out(`${dryRunLines(plan, cwd).join("\n")}\n`);
     return 0;
   }
-  return fail(`${mode.name} isn't available yet.`);
+  const { run } = mode;
+  if (!run) {
+    return fail(`${mode.name} isn't available yet.`);
+  }
+
+  const { exitCodeFor, runBatch } = await import("./runner.js");
+  const reporter = new Reporter(
+    output,
+    { quiet: values.quiet === true, verbose: values.verbose === true, cwd },
+    plan.items.length,
+  );
+  try {
+    const result = await runBatch(
+      { ...mode, run },
+      plan,
+      { options: values, overwrite: values.overwrite === true, cwd, signal },
+      reporter,
+    );
+    return exitCodeFor(result, plan.items.length);
+  } catch (error) {
+    if (isUserError(error)) {
+      return fail(error.message);
+    }
+    throw error;
+  }
 }
 
 function dryRunLines(plan: OutputPlan, cwd: string): string[] {
