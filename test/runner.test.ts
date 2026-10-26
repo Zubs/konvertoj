@@ -271,7 +271,7 @@ describe("runBatch notes", () => {
     const cwd = makeFolder();
     const { text } = await run(cwd, await planFor(cwd, ["noted.txt"]));
     expect(text).toContain(
-      "✓ noted.txt → noted-copy.txt  9 B → 9 B\n  Note: copied with a note\n",
+      "✓ noted.txt → noted-copy.txt  9 B → 9 B (0%)\n  Note: copied with a note\n",
     );
   });
 });

@@ -87,7 +87,7 @@ describe("Reporter", () => {
       1,
     ).succeeded(item("a.gif", "a.jpg"), 10, 10, [note]);
     expect(loud.written.out).toBe(
-      `✓ a.gif → a.jpg  10 B → 10 B\n  Note: ${note}\n`,
+      `✓ a.gif → a.jpg  10 B → 10 B (0%)\n  Note: ${note}\n`,
     );
     const quiet = fakeOutput(false);
     new Reporter(
@@ -113,7 +113,7 @@ describe("Reporter", () => {
       result({ converted: 1, sizeBefore: 2_516_582, sizeAfter: 419_840 }),
     );
     expect(written.out).toBe(
-      "✓ photo.heic → photo.jpg  2.4 MB → 410 KB\nDone in 1.2s: 1 converted, 0 failed, 0 skipped. 2.4 MB → 410 KB (−83%).\n",
+      "✓ photo.heic → photo.jpg  2.4 MB → 410 KB (−83%)\nDone in 1.2s: 1 converted, 0 failed, 0 skipped. 2.4 MB → 410 KB (−83%).\n",
     );
     expect(written.err).toBe("");
   });
@@ -155,7 +155,7 @@ describe("Reporter", () => {
     );
     reporter.succeeded(item("scan1.jpg", "scans.pdf", 2), 3000, 1000);
     expect(written.out).toBe(
-      "✓ scan1.jpg and 2 others → scans.pdf  2.9 KB → 1000 B\n",
+      "✓ scan1.jpg and 2 others → scans.pdf  2.9 KB → 1000 B (−67%)\n",
     );
   });
 

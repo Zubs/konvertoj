@@ -215,6 +215,12 @@ export const targetSize = value(
   "target-size",
   "size",
   "Largest file size, e.g. 200kb or 1.5mb",
+  {
+    rule: {
+      pattern: /^(?=.*[1-9])\d+(\.\d+)?(kb|mb)$/i,
+      description: "a size such as 200kb or 1.5mb",
+    },
+  },
 );
 export const resizeScale = value(
   "scale",

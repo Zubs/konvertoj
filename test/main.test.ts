@@ -347,7 +347,7 @@ describe("main", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.stdout).toMatch(
-      /^✓ notes\.txt → notes-copy\.txt {2}9 B → 9 B\nDone in \d+\.\ds: 1 converted, 0 failed, 0 skipped\. 9 B → 9 B \(0%\)\.\n$/,
+      /^✓ notes\.txt → notes-copy\.txt {2}9 B → 9 B \(0%\)\nDone in \d+\.\ds: 1 converted, 0 failed, 0 skipped\. 9 B → 9 B \(0%\)\.\n$/,
     );
     expect(readFileSync(path.join(workFolder, "notes-copy.txt"), "utf8")).toBe(
       "notes.txt",

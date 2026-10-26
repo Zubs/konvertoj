@@ -8,7 +8,7 @@ Defines what konvertoj shows while a batch runs and when it ends: a line per fil
 
 ### Requirement: A line per file
 Each finished file SHALL get one line:
-- a success goes to standard output: `✓ <input> → <output>  <size before> → <size after>`,
+- a success goes to standard output: `✓ <input> → <output>  <size before> → <size after> (<change>)`, where the change, shown when the size before is above 0, is the percentage the size went down (`−83%`) or up (`+12%`), as in the summary,
 - a skip goes to standard output: `- <input> skipped: <reason>`,
 - a failure goes to standard error: `✗ <input>: <reason>`.
 
@@ -18,7 +18,11 @@ Paths SHALL be relative to the current folder. A combined item SHALL name its fi
 
 #### Scenario: One success
 - **WHEN** one file is converted
-- **THEN** standard output has one `✓` line naming the input, the output and both sizes, followed by the summary
+- **THEN** standard output has one `✓` line naming the input, the output, both sizes and the change in percent, followed by the summary
+
+#### Scenario: Size change on each line
+- **WHEN** `hero.jpg` of 2.4 MB is compressed to 410 KB
+- **THEN** its line ends with `2.4 MB → 410 KB (−83%)`
 
 #### Scenario: A failure
 - **WHEN** a file fails because the mode reported a problem

@@ -30,6 +30,21 @@ function reportUnexpected(error: unknown, args: string[]): void {
   }
 }
 
+function writerFor(stream: NodeJS.WriteStream): (text: string) => void {
+  let closed = false;
+  stream.on("error", (error: NodeJS.ErrnoException) => {
+    if (error.code !== "EPIPE") {
+      throw error;
+    }
+    closed = true;
+  });
+  return (text) => {
+    if (!closed) {
+      stream.write(text);
+    }
+  };
+}
+
 export async function start(
   args: string[],
   extraModes: Mode[] = [],
@@ -49,8 +64,8 @@ export async function start(
     process.exitCode = await main(
       args,
       {
-        out: (text) => process.stdout.write(text),
-        err: (text) => process.stderr.write(text),
+        out: writerFor(process.stdout),
+        err: writerFor(process.stderr),
         errIsTerminal: process.stderr.isTTY === true,
         colours: {
           out: coloursAllowed(process.stdout.isTTY),

@@ -26,6 +26,7 @@ import {
 export interface ConvertSettings {
   keepFormat?: boolean;
   enlarge?: boolean;
+  quality?: number;
 }
 
 const animatableFormats = ["gif", "webp"];
@@ -33,11 +34,23 @@ const formatsWithoutDetails = ["bmp", "gif", "ico"];
 const repackedFormats = ["bmp", "ico"];
 const transparent = { r: 0, g: 0, b: 0, alpha: 0 };
 const largestIcon = 256;
+const screenDensity = 72;
 
-function quality(options: RunContext["options"], target: string) {
+function quality(
+  options: RunContext["options"],
+  target: string,
+  compressQuality: number | undefined,
+) {
+  if (compressQuality !== undefined) {
+    return compressQuality;
+  }
   return typeof options.quality === "string"
     ? Number(options.quality)
     : defaultQualities[target];
+}
+
+function frameSharing(compressQuality: number): number {
+  return Math.round((100 - compressQuality) * 0.32);
 }
 
 async function bmpFile(image: Sharp): Promise<Buffer> {
@@ -101,28 +114,39 @@ function encode(
   target: string,
   options: RunContext["options"],
   iconSizes: number[],
+  compressQuality: number | undefined,
 ): Promise<Buffer> {
   const lossless = options.lossless === true;
+  const chosen = quality(options, target, compressQuality);
   switch (target) {
     case "jpg":
       return image
         .jpeg({
-          quality: quality(options, target),
+          quality: chosen,
           progressive: options.progressive === true,
         })
         .toBuffer();
     case "png":
-      return image.png().toBuffer();
+      return (
+        compressQuality === undefined
+          ? image.png()
+          : image.png({ palette: true, quality: compressQuality, effort: 10 })
+      ).toBuffer();
     case "webp":
-      return image
-        .webp({ quality: quality(options, target), lossless })
-        .toBuffer();
+      return image.webp({ quality: chosen, lossless }).toBuffer();
     case "avif":
-      return image
-        .avif({ quality: quality(options, target), lossless })
-        .toBuffer();
+      return image.avif({ quality: chosen, lossless }).toBuffer();
     case "gif":
-      return image.gif().toBuffer();
+      return (
+        compressQuality === undefined
+          ? image.gif()
+          : image.gif({
+              effort: 10,
+              reuse: false,
+              interFrameMaxError: frameSharing(compressQuality),
+              interPaletteMaxError: frameSharing(compressQuality),
+            })
+      ).toBuffer();
     case "bmp":
       return bmpFile(image);
     case "ico":
@@ -152,7 +176,7 @@ function withDetails(
     return profiled;
   }
   if (details.heicExif) {
-    return profiled.withExif(details.heicExif);
+    return profiled.withExif(details.heicExif).withDensity(screenDensity);
   }
   return details.damaged ? profiled.keepXmp() : profiled.keepExif().keepXmp();
 }
@@ -220,14 +244,14 @@ function finalPlan(
   return plan;
 }
 
-export async function convertImage(
+export async function renderImage(
   context: RunContext,
   target: string,
-  { keepFormat = false, enlarge = false }: ConvertSettings = {},
-): Promise<void> {
+  { keepFormat = false, enlarge = false, quality }: ConvertSettings = {},
+): Promise<Buffer> {
   const [input] = context.inputs;
   if (!input) {
-    return;
+    throw new UserError("has nothing to convert.");
   }
   const format = input.format ?? "";
   const { options } = context;
@@ -247,7 +271,6 @@ export async function convertImage(
       ? undefined
       : await readDetails(input, opened);
   reportDetails(context, target, details);
-  let encoded: Buffer;
   try {
     let { image } = opened;
     if (plan) {
@@ -271,11 +294,12 @@ export async function convertImage(
     if (losesTransparency(target, options)) {
       image = image.flatten({ background: backgroundColour(options) });
     }
-    encoded = await encode(
+    return await encode(
       withDetails(image, target, details),
       target,
       options,
       iconSizes,
+      quality,
     );
   } catch (error) {
     if (isUserError(error) || isFileSystemError(error)) {
@@ -289,5 +313,13 @@ export async function convertImage(
     }
     throw damagedFile(error);
   }
+}
+
+export async function convertImage(
+  context: RunContext,
+  target: string,
+  settings: ConvertSettings = {},
+): Promise<void> {
+  const encoded = await renderImage(context, target, settings);
   await context.save((temporaryPath) => writeFile(temporaryPath, encoded));
 }

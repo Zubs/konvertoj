@@ -23,6 +23,23 @@ function launch(cwd: string, args: string[]) {
 }
 
 describe("launched konvertoj", () => {
+  it("keeps working quietly when its output pipe is closed early", async () => {
+    const names = Array.from({ length: 20 }, (_, index) => `slow${index}.txt`);
+    const cwd = folderWith(names);
+    const child = spawn(process.execPath, [launcher, "-m", "copy", "."], {
+      cwd,
+    });
+    child.stdout.destroy();
+    let stderr = "";
+    child.stderr.on("data", (chunk) => (stderr += chunk));
+    const exitCode = await new Promise((resolve) => child.on("close", resolve));
+    expect(stderr).not.toContain("EPIPE");
+    expect(exitCode).toBe(0);
+    expect(
+      readdirSync(cwd).filter((name) => name.includes("-copy")),
+    ).toHaveLength(20);
+  });
+
   it("writes plain lines with no colour codes or progress bar when piped", () => {
     const cwd = folderWith(["a.txt", "b.txt", "fail.txt"]);
     const result = launch(cwd, ["-m", "copy", "a.txt", "b.txt", "fail.txt"]);

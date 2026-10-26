@@ -120,7 +120,8 @@ export class Reporter {
       const output = item.output
         ? path.relative(this.settings.cwd, item.output)
         : "";
-      const sizes = `${formatSize(before)} → ${formatSize(after)}`;
+      const change = before > 0 ? ` (${formatChange(before, after)})` : "";
+      const sizes = `${formatSize(before)} → ${formatSize(after)}${change}`;
       this.line(
         "out",
         `${this.paint("out", "green", "✓")} ${this.describe(item)} → ${output}  ${sizes}`,

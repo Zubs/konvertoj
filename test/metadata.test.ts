@@ -179,6 +179,26 @@ describe("--strip-metadata", () => {
     expect(profile?.toString("latin1").replaceAll("\0", "")).toContain("sRGB");
   });
 
+  it("adds no details block to HEIC, BMP or ICO outputs", async () => {
+    const folder = makeFolder();
+    copyFileSync(
+      path.join("test", "fixtures", "iphone.heic"),
+      path.join(folder, "iphone.heic"),
+    );
+    await writeImage(folder, "plain.png", "png");
+    await run(folder, "-m", "pngtobmp", "plain.png");
+    await run(folder, "-m", "pngtoico", "plain.png");
+    await run(folder, "-m", "heictojpg", "iphone.heic", "--strip-metadata");
+    await run(folder, "-m", "tojpg", "plain.bmp", "plain.ico", "-o", "out");
+    for (const file of [
+      path.join(folder, "iphone.jpg"),
+      path.join(folder, "out", "plain.jpg"),
+      path.join(folder, "out", "plain (1).jpg"),
+    ]) {
+      expect((await sharp(file).metadata()).exif, file).toBeUndefined();
+    }
+  });
+
   it("leaves a HEIC's details out", async () => {
     const folder = makeFolder();
     copyFileSync(

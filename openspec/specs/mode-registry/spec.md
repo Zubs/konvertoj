@@ -107,7 +107,8 @@ A value option whose valid values are a fixed list of words, a number range, a c
   - `--background` in `pngtojpg` and `rotate` allows colours,
   - `pngtoico`'s `--sizes` allows comma-separated whole numbers from 1 to 256,
   - `svgtopng`'s `--dpi` allows numbers from 1 to 7200,
-  - `resize`'s `--scale` allows positive percentages such as `50%`.
+  - `resize`'s `--scale` allows positive percentages such as `50%`,
+  - `compress`'s `--target-size` allows a positive size in `kb` or `mb`, in any letter case, such as `200kb` or `1.5MB`.
 
 #### Scenario: Defaults are valid
 - **WHEN** every option default in the registry is checked against its option's rule

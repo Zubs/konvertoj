@@ -122,6 +122,15 @@ function resizeProblem(options: RunContext["options"]): string | undefined {
   return undefined;
 }
 
+function compressProblem(options: RunContext["options"]): string | undefined {
+  const given = ["quality", "level", "target-size"].filter(
+    (name) => options[name] !== undefined,
+  );
+  return given.length > 1
+    ? "Use only one of --quality, --level and --target-size."
+    : undefined;
+}
+
 function targetEncodingOptions(target: string): OptionDefinition[] {
   const options: OptionDefinition[] = [];
   if (target in defaultQualities || target === "tiff") {
@@ -305,6 +314,9 @@ function toolModes(): Mode[] {
       output: "same",
       outputSuffix: "compressed",
       options: [compressQuality, level, targetSize],
+      checkOptions: compressProblem,
+      run: async (context) =>
+        (await import("../convert/compress.js")).compressImage(context),
       description: "Make images smaller while keeping them looking good",
       examples: [
         "konvertoj -m compress hero.jpg",

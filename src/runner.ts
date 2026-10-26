@@ -1,8 +1,9 @@
 import { stat } from "node:fs/promises";
 import { availableParallelism } from "node:os";
-import { checkItem } from "./detect.js";
+import path from "node:path";
+import { checkItem, withArticle } from "./detect.js";
 import { isUserError } from "./errors.js";
-import { formatLabels } from "./modes/formats.js";
+import { extensionsFor, formatLabels } from "./modes/formats.js";
 import type { Mode } from "./modes/registry.js";
 import { prepareOutputFolders, writeOutputFile } from "./output-files.js";
 import type { OutputPlan, PlannedItem } from "./outputs.js";
@@ -67,7 +68,7 @@ export async function runBatch(
       reporter.failed(item, reason);
       return;
     }
-    const output = item.output ?? "";
+    let output = item.output ?? "";
     const startedAt = Date.now();
     reporter.started(item);
     try {
@@ -86,8 +87,21 @@ export async function runBatch(
         }
         inputs = checked.inputs;
       }
-      let savedPath: string | undefined;
       const notes: string[] = [];
+      const realFormat = inputs[0]?.format;
+      const extension = path.extname(output);
+      if (
+        mode.output === "same" &&
+        realFormat &&
+        extension &&
+        !extensionsFor(realFormat).includes(extension.slice(1).toLowerCase())
+      ) {
+        output = `${output.slice(0, -extension.length)}.${realFormat}`;
+        notes.push(
+          `saved as .${realFormat}, because ${path.basename(item.inputs[0]?.path ?? "")} is really ${withArticle(realFormat)} file`,
+        );
+      }
+      let savedPath: string | undefined;
       const outcome = await mode.run({
         inputs,
         output,

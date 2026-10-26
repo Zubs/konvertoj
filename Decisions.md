@@ -43,3 +43,14 @@ Decisions taken while building the features in [Features.md](Features.md) that g
 - **`resize --scale` needs a `%`.** `--scale 50%` and `--scale 200%` work. A bare `50` is rejected, so it can't be mistaken for 50 pixels or 50 times.
 - **Resizing an icon makes one icon.** `resize` and `enlarge` on an ICO write a single square icon at the new size, up to 256 pixels, the largest an ICO entry can be. Conversions to ICO still use `--sizes`.
 - **Option checks per mode.** Modes can declare rules across their options, such as `resize`'s "Give --width, --height or --scale" and the `--scale`/`--width` conflict. They are checked before any file is read, so a wrong command fails at once. Features 10 to 12 use the same hook.
+
+## 10. Compress
+
+- **GIF compression shares pixels between frames.** Features.md says GIFs use fewer colours. sharp's colour setting barely changes GIF output (anything from 17 to 256 colours gives the same file), so lowering quality instead lets neighbouring frames share more pixels and palettes, which clearly shrinks animated GIFs. A still GIF usually can't get smaller this way, and is reported as "already optimised".
+- **The target-size search assumes bigger files at higher quality.** That holds for JPG. WebP, AVIF and palette PNG sizes can dip slightly at some qualities, so for them the result is the highest fitting quality the search found, within the 8 attempts Features.md allows.
+- **1 KB = 1024 bytes** for `--target-size`, matching the sizes konvertoj prints.
+- **Every success line shows the size change.** Features.md shows `hero.jpg 2.4 MB → 410 KB (−83%)` for compress. Every mode's `✓` line now ends with the percentage, like the summary, so the format is the same everywhere.
+- **One of `--quality`, `--level` and `--target-size`.** Features.md rejects `--quality` with either of the others. `--level` with `--target-size` is also rejected, because they contradict each other in the same way.
+- **Kept details can make small files "already optimised".** `compress` keeps camera details and writes an sRGB profile, like every conversion. For a tiny, well-compressed file those few hundred bytes can make the result bigger, and the file is then left alone. `--strip-metadata` removes them.
+- **Tools that keep the format follow the real format.** A PNG named `screen.jpg` given to `compress`, `resize`, `enlarge` or `strip` is saved as `screen-compressed.png`, with a note, rather than writing PNG data into a `.jpg` file.
+- **A closed output pipe doesn't stop the work.** When konvertoj's output is piped into a command that stops reading early, such as `head`, konvertoj stops printing but finishes the files it was working on, and exits with its normal code. Without this, Node.js would crash with an EPIPE error and could leave work half done.

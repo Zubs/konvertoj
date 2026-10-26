@@ -84,7 +84,7 @@ function shortLabel(format: string): string {
   return (formatLabels[format] ?? format).replace(/ \(.*\)$/, "");
 }
 
-function withArticle(format: string): string {
+export function withArticle(format: string): string {
   const label = shortLabel(format);
   return `${/^[AEIOMSX]/.test(label) ? "an" : "a"} ${label}`;
 }
