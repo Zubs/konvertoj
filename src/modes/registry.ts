@@ -1,6 +1,7 @@
 import {
   audioOutputs,
   defaultQualities,
+  extensionsFor,
   formatLabels,
   imageInputs,
   imageOutputs,
@@ -77,7 +78,7 @@ export interface Mode {
   outputSuffix?: string;
   combinesInputs?: true;
   multipleOutputs?: true;
-  usesFfmpeg?: true;
+  usesFfmpeg?: true | ((inputs: InputFile[]) => boolean);
   checkOptions?: (options: RunContext["options"]) => string | undefined;
   warnings?: (options: RunContext["options"]) => string[];
   run?: (context: RunContext) => Promise<{ skipped: string } | void>;
@@ -388,6 +389,10 @@ function gifModes(): Mode[] {
       inputs: [...imageInputs, ...videoInputs],
       output: "gif",
       options: [gifWidth, fps, start, end, speed, force],
+      usesFfmpeg: (inputs) => inputs.some((input) => isVideoFile(input.path)),
+      checkOptions: timeRangeProblem,
+      run: async (context) =>
+        (await import("../video/gif.js")).makeGif(context),
       description: "Turn an image or a short video clip into a GIF",
       examples: [
         "konvertoj -m togif clip.mp4 --start 0:02 --end 0:05",
@@ -619,6 +624,18 @@ export function commonOptionsFor(mode: Mode): OptionDefinition[] {
   return mode.output === "none"
     ? commonOptions.filter((option) => !fileOptions.includes(option.name))
     : commonOptions;
+}
+
+const videoExtensions = new Set(videoInputs.flatMap(extensionsFor));
+
+function isVideoFile(file: string): boolean {
+  return videoExtensions.has(file.split(".").pop()?.toLowerCase() ?? "");
+}
+
+export function needsFfmpeg(mode: Mode, inputs: InputFile[]): boolean {
+  return typeof mode.usesFfmpeg === "function"
+    ? mode.usesFfmpeg(inputs)
+    : mode.usesFfmpeg === true;
 }
 
 export function acceptedOptions(mode: Mode): OptionDefinition[] {

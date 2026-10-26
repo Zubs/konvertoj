@@ -26,7 +26,7 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - [x] 14. FFmpeg add-on
 - [x] 15. Video to MP4
 - [x] 16. Audio from video
-- [ ] 17. GIF (`togif`)
+- [x] 17. GIF (`togif`)
 - [ ] 18. Cross-platform packaging
 - [ ] 19. Documentation
 - [ ] 20. Launch readiness

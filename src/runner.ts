@@ -4,7 +4,7 @@ import path from "node:path";
 import { checkItem, withArticle } from "./detect.js";
 import { isUserError } from "./errors.js";
 import { extensionsFor, formatLabels } from "./modes/formats.js";
-import type { Mode } from "./modes/registry.js";
+import { needsFfmpeg, type Mode } from "./modes/registry.js";
 import { prepareOutputFolders, writeOutputFile } from "./output-files.js";
 import type { OutputPlan, PlannedItem } from "./outputs.js";
 import type { BatchResult, Reporter, Section } from "./report.js";
@@ -176,7 +176,12 @@ export async function runBatch(
     Array.from(
       {
         length: Math.min(
-          mode.usesFfmpeg ? 1 : parallelLimit(),
+          needsFfmpeg(
+            mode,
+            plan.items.flatMap((item) => item.inputs),
+          )
+            ? 1
+            : parallelLimit(),
           plan.items.length,
         ),
       },

@@ -123,3 +123,11 @@ Decisions taken while building the features in [Features.md](Features.md) that g
 - **Warnings come from the mode registry.** Modes can declare warnings about their options, printed once before any file is processed. WAV and FLAC use this to say that `--bitrate` is ignored.
 - **Opus is capped at 256k.** When OGG uses Opus, the highest bitrate it accepts for a one-channel recording is 256k, so `--bitrate 320k` is saved at 256k with a note, instead of failing on recorded talks.
 - **Files already in the output format get their names last.** In a folder with `b.webm` and `b.mp3`, `tomp3` names the real conversion `b (1).mp3`. The existing `b.mp3`, which will be skipped, is planned after it, so it no longer pushes the new file to `b (2).mp3`.
+
+## 17. GIF (`togif`)
+
+- **The 30-second limit is on the chosen section, before `--speed`.** A 40-second clip with `--start 0:05 --end 0:30` is 25 seconds and is accepted. `--speed` doesn't count towards the limit, so the rule is the same whatever the speed, and the message can point at `--start` and `--end`.
+- **`--width` also resizes image GIFs, and never enlarges.** Features.md describes `--width` for videos only. Ignoring it for images would silently do nothing, so it resizes them down too. A width larger than the image keeps the image's size, with a note, because `togif` never makes images bigger.
+- **A GIF given only video options is skipped as already a GIF.** Running `togif` again on a folder with `--fps` finds the GIFs it made earlier. They are skipped like any file already in the output format, rather than failing because `--fps` only applies to videos. A PNG given `--fps` still fails with a clear message.
+- **FFmpeg is needed only when an input is a video.** `togif` takes images and videos. The mode registry can now say a mode needs FFmpeg depending on its inputs, so making a GIF from images never asks to download the video add-on.
+- **The "isn't available yet" rule is kept for future modes.** `togif` was the last mode without a conversion, so the tests for that message now use a test-only mode.

@@ -157,11 +157,8 @@ export const pdfDpi = value(
 export const gifWidth = value(
   "width",
   "pixels",
-  "Width in pixels for GIFs made from video",
-  {
-    defaultValue: "480",
-    rule: wholeNumberFromOne,
-  },
+  "Width in pixels (videos default to 480)",
+  { rule: wholeNumberFromOne },
 );
 export const fps = value(
   "fps",

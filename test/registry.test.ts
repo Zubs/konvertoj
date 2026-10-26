@@ -5,6 +5,7 @@ import {
   findMode,
   groups,
   modes,
+  needsFfmpeg,
   type Mode,
 } from "../src/modes/registry.js";
 
@@ -256,8 +257,16 @@ describe("mode registry", () => {
 
 describe("modes that need FFmpeg", () => {
   it("are exactly the Video & Audio modes", () => {
-    const marked = modes.filter((mode) => mode.usesFfmpeg);
+    const marked = modes.filter((mode) => mode.usesFfmpeg === true);
     expect(marked).toHaveLength(41);
     expect(marked.every((mode) => mode.group === "Video & Audio")).toBe(true);
+  });
+});
+
+describe("togif and FFmpeg", () => {
+  it("needs FFmpeg only for videos", () => {
+    const togif = findMode("togif");
+    expect(togif && needsFfmpeg(togif, [{ path: "logo.png" }])).toBe(false);
+    expect(togif && needsFfmpeg(togif, [{ path: "clip.MP4" }])).toBe(true);
   });
 });

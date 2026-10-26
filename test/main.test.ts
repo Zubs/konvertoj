@@ -5,6 +5,14 @@ import { mainHelp, modeHelp, modeList } from "../src/help.js";
 import { main } from "../src/main.js";
 import { findMode } from "../src/modes/registry.js";
 import { copyMode } from "./support/copy-mode.mjs";
+
+const unbuiltMode = {
+  ...copyMode,
+  name: "unbuilt",
+  inputs: ["mp4"],
+  output: "gif",
+  run: undefined,
+};
 import { makeFolder } from "./support/folders.js";
 
 const projectFolder = process.cwd();
@@ -39,7 +47,7 @@ async function run(...args: string[]) {
       errIsTerminal: false,
       colours: { out: false, err: false },
     },
-    { extraModes: [copyMode] },
+    { extraModes: [copyMode, unbuiltMode] },
   );
   return { exitCode, stdout, stderr };
 }
@@ -267,8 +275,8 @@ describe("main", () => {
 
   it("says when a mode isn't built yet", async () => {
     await expectFailure(
-      ["-m", "togif", "clip.mp4"],
-      "togif isn't available yet.",
+      ["-m", "unbuilt", "clip.mp4"],
+      "unbuilt isn't available yet.",
     );
   });
   it("checks a mode's own option rules before inputs", async () => {
@@ -289,7 +297,7 @@ describe("main", () => {
 
   it("reports input mistakes before saying a mode isn't built", async () => {
     const result = await expectFailure(
-      ["-m", "togif", "missing.mp4"],
+      ["-m", "unbuilt", "missing.mp4"],
       "missing.mp4 can't be found",
     );
     expect(result.stderr).not.toContain("isn't available yet");
@@ -407,8 +415,8 @@ describe("main", () => {
 
   it("says an unbuilt mode isn't available without creating the -o folder", async () => {
     await expectFailure(
-      ["-m", "togif", "clip.mp4", "-o", "converted/"],
-      "togif isn't available yet.",
+      ["-m", "unbuilt", "clip.mp4", "-o", "converted/"],
+      "unbuilt isn't available yet.",
     );
     expect(existsSync(path.join(workFolder, "converted"))).toBe(false);
   });

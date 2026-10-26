@@ -8,6 +8,7 @@ import {
   acceptedOptions,
   findMode,
   modes,
+  needsFfmpeg,
   type Mode,
 } from "./modes/registry.js";
 import { suggestMode } from "./modes/suggest.js";
@@ -266,7 +267,12 @@ export async function main(
     return fail(`${mode.name} isn't available yet.`);
   }
   let ffmpeg: string | undefined;
-  if (mode.usesFfmpeg) {
+  if (
+    needsFfmpeg(
+      mode,
+      plan.items.flatMap((item) => item.inputs),
+    )
+  ) {
     const found = await provideFfmpeg(output, mainOptions, false);
     if (typeof found === "number") {
       return found;
