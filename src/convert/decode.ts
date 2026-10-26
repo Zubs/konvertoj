@@ -2,7 +2,7 @@ import { Buffer } from "node:buffer";
 import { readFile } from "node:fs/promises";
 import { decode as decodeBmp } from "bmp-ts";
 import decodeIco from "decode-ico";
-import sharp, { type Sharp } from "sharp";
+import sharp, { type Metadata, type Sharp } from "sharp";
 import {
   damagedFile,
   isFileSystemError,
@@ -17,9 +17,11 @@ export interface OpenedImage {
   width: number;
   height: number;
   pages: number;
+  metadata?: Metadata;
 }
 
 const largestDensity = 100000;
+const screenDensity = 72;
 const defaultSvgWidth = 512;
 const svgStartTag = /<svg\b[^>]*>/i;
 const viewBoxSize =
@@ -34,7 +36,9 @@ function fromPixels(
 ): OpenedImage {
   const data = Buffer.from(pixels.buffer, pixels.byteOffset, pixels.byteLength);
   return {
-    image: sharp(data, { raw: { width, height, channels: 4 } }),
+    image: sharp(data, { raw: { width, height, channels: 4 } }).withDensity(
+      screenDensity,
+    ),
     width,
     height,
     pages: 1,
@@ -172,6 +176,7 @@ async function openCore(path: string, animated: boolean): Promise<OpenedImage> {
     width: metadata.width,
     height: metadata.height,
     pages: metadata.pages ?? 1,
+    metadata,
   };
 }
 

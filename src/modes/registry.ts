@@ -356,6 +356,8 @@ function toolModes(): Mode[] {
       output: "same",
       outputSuffix: "stripped",
       options: [],
+      run: async (context) =>
+        (await import("../convert/strip.js")).stripDetails(context),
       description: "Remove camera, date and location details from images",
       examples: ["konvertoj -m strip ./holiday -o ./to-share"],
     }),

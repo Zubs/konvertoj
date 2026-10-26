@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { encode as encodeBmp } from "bmp-ts";
 import type { Sharp } from "sharp";
@@ -13,8 +14,11 @@ import { background, sizes } from "../modes/options.js";
 import type { RunContext } from "../modes/registry.js";
 import { openImage } from "./decode.js";
 import { writeIco } from "./ico.js";
+import { readDetails, type Details } from "./metadata.js";
 
 const animatableFormats = ["gif", "webp"];
+const formatsWithoutDetails = ["bmp", "gif", "ico"];
+const repackedFormats = ["bmp", "ico"];
 const transparent = { r: 0, g: 0, b: 0, alpha: 0 };
 
 function quality(options: RunContext["options"], target: string) {
@@ -107,6 +111,46 @@ function encode(
   }
 }
 
+function withDetails(
+  image: Sharp,
+  target: string,
+  details: Details | undefined,
+): Sharp {
+  if (repackedFormats.includes(target)) {
+    return image;
+  }
+  const profiled = image.withIccProfile("srgb");
+  if (!details?.present) {
+    return profiled;
+  }
+  if (details.heicExif) {
+    return profiled.withExif(details.heicExif);
+  }
+  return details.damaged ? profiled.keepXmp() : profiled.keepExif().keepXmp();
+}
+
+function reportDetails(
+  context: RunContext,
+  target: string,
+  details: Details | undefined,
+): void {
+  const name = path.basename(context.inputs[0]?.path ?? "");
+  const label = formatLabels[target];
+  if (details?.damaged) {
+    context.note("the photo's details looked damaged, so they were left out");
+  }
+  if (details?.present && formatsWithoutDetails.includes(target)) {
+    context.detail(
+      `${name}'s camera, date and location details were dropped, because ${label} can't hold them`,
+    );
+  }
+  if (details?.hasExif && !details.damaged && target === "tiff") {
+    context.detail(
+      `${name}'s camera, date and location details were dropped, because konvertoj can't write them into TIFF files`,
+    );
+  }
+}
+
 function losesTransparency(target: string, options: RunContext["options"]) {
   return (
     target === "jpg" ||
@@ -128,6 +172,11 @@ export async function convertImage(
   const animated =
     animatableFormats.includes(target) && animatableFormats.includes(format);
   const opened = await openImage(input, options, animated);
+  const details =
+    options["strip-metadata"] === true
+      ? undefined
+      : await readDetails(input, opened);
+  reportDetails(context, target, details);
   let encoded: Buffer;
   try {
     let { image } = opened;
@@ -149,7 +198,11 @@ export async function convertImage(
             : background.defaultValue,
       });
     }
-    encoded = await encode(image, target, options);
+    encoded = await encode(
+      withDetails(image, target, details),
+      target,
+      options,
+    );
   } catch (error) {
     if (isUserError(error) || isFileSystemError(error)) {
       throw error;

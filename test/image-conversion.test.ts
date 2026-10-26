@@ -289,7 +289,8 @@ describe("core image conversion", () => {
     const source = await writeDisplayP3Png(folder, "wide.png");
     await run(folder, "-m", "pngtojpg", "wide.png", "--quality", "100");
     const output = path.join(folder, "wide.jpg");
-    expect((await sharp(output).metadata()).icc).toBeUndefined();
+    const profile = (await sharp(output).metadata()).icc;
+    expect(profile?.toString("latin1").replaceAll("\0", "")).toContain("sRGB");
     const expected = await sharp(source).toColourspace("srgb").raw().toBuffer();
     const { data } = await pixels(output);
     for (let channel = 0; channel < 3; channel++) {

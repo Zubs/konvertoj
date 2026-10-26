@@ -109,7 +109,7 @@ An animated GIF or WebP SHALL stay animated, with the same number of frames, whe
 - **THEN** the PNG has the size of one page, and a note says only the first page was kept
 
 ### Requirement: Upright and sRGB
-Outputs SHALL be turned upright using the input's orientation tag, and SHALL be in the sRGB colour space.
+Outputs SHALL be turned upright using the input's orientation tag, and SHALL be in the sRGB colour space. Outputs in formats that hold a colour profile SHALL carry an sRGB profile, so the profile always matches the pixels.
 
 #### Scenario: Sideways phone photo
 - **WHEN** a 60 × 40 JPG tagged with orientation 6 (turn 90° clockwise) is converted to PNG
@@ -117,7 +117,7 @@ Outputs SHALL be turned upright using the input's orientation tag, and SHALL be 
 
 #### Scenario: Wide-gamut input
 - **WHEN** a PNG with a Display P3 colour profile is converted to JPG
-- **THEN** the JPG has no embedded colour profile, and its colours are converted to sRGB rather than copied as they are
+- **THEN** the JPG carries an sRGB colour profile, not the Display P3 one, and its colours are converted to sRGB rather than copied as they are
 
 ### Requirement: Too large
 An image with more pixels than konvertoj can safely decode SHALL fail with "is too large", giving its width and height and the limit, never a crash.

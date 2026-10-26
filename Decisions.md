@@ -27,3 +27,12 @@ Decisions taken while building the features in [Features.md](Features.md) that g
 - **Checking ICO files without a browser.** Features.md asks that ICOs open in a browser and in Windows. The test suite has neither, so it checks that the file is a standard ICO container: a valid header and directory, 256 recorded as 0, and PNG entries. Browsers and Windows Vista and later read that format.
 - **libheif's console output is silenced.** The HEIC decoder prints "Could not parse HEIF file" by itself on damaged files. konvertoj silences it while decoding, so users only see the plain-English "looks damaged" message.
 - **Library errors aren't mistaken for file-system errors.** Errors are treated as file-system problems only when they carry a system call, because some decoders throw Node.js `ERR_OUT_OF_RANGE` errors on malformed files, and those mean the file looks damaged.
+
+## 8. Metadata and strip
+
+- **TIFF can't hold camera details.** Features.md lists TIFF among the formats that keep details. sharp can't write EXIF into TIFF files, so a TIFF keeps XMP and its colour profile, but loses the camera, date and location. `--verbose` says so.
+- **Outputs carry an sRGB colour profile.** Feature 6 converts colours to sRGB. Copying the input's original profile (for example Display P3) would then describe the wrong colours, so every output that can hold a profile gets the sRGB one instead.
+- **HEIC orientation is written as normal.** A HEIC's pixels come out of the decoder already upright, so the orientation copied into the output is 1. Copying the photo's original orientation would turn it a second time.
+- **`strip` keeps JPG pictures exactly.** An upright JPG has its detail blocks (EXIF, XMP, IPTC, comments and non-colour APP2 blocks) removed directly, with no re-compression, so the picture doesn't get worse. Anything stored after the JPG's end is removed too: extra images such as depth or gain maps, and motion-photo videos, which can carry their own location. Other cases are re-encoded without details: PNG, TIFF and lossless WebP losslessly, and lossy WebP, AVIF and sideways JPGs at their default quality.
+- **Unreadable details are left out, with a visible warning.** A corrupted EXIF block is otherwise copied as it is. konvertoj checks EXIF with `exifr` (from the tech stack), and leaves it out, with a `Note:` line, when `exifr` can't read it cleanly.
+- **IPTC details aren't copied.** sharp has no way to keep IPTC. They are dropped on conversion, and also removed by `--strip-metadata` and `strip`.
