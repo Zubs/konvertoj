@@ -1,8 +1,7 @@
 import { copyFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
-import { afterEach, describe, expect, it } from "vitest";
-import { main } from "../src/main.js";
+import { describe, expect, it } from "vitest";
 import { coreImageFormats } from "../src/modes/formats.js";
 import { makeFolder } from "./support/folders.js";
 import {
@@ -18,27 +17,11 @@ import {
   writeNoise,
   writeSidewaysJpg,
 } from "./support/images.js";
+import { runIn as run } from "./support/run-main.js";
 import { writeSample } from "./support/samples.js";
 
 const projectFolder = process.cwd();
 const transparent = { r: 0, g: 0, b: 0, alpha: 0 };
-
-afterEach(() => {
-  process.chdir(projectFolder);
-});
-
-async function run(folder: string, ...args: string[]) {
-  process.chdir(folder);
-  let stdout = "";
-  let stderr = "";
-  const exitCode = await main(args, {
-    out: (text) => (stdout += text),
-    err: (text) => (stderr += text),
-    errIsTerminal: false,
-    colours: { out: false, err: false },
-  });
-  return { exitCode, stdout, stderr };
-}
 
 async function expectImage(
   file: string,
@@ -385,16 +368,6 @@ describe("core image conversion", () => {
     expect(result.stdout).toContain("1 converted, 2 failed, 1 skipped");
     expect(result.stdout).toContain("photo.jpg skipped: already a JPG");
     expect(existsSync(path.join(folder, "out", "chart.jpg"))).toBe(true);
-  });
-
-  it("says HEIC can't be converted yet", async () => {
-    const folder = makeFolder();
-    copyFileSync(
-      path.join(projectFolder, "test", "fixtures", "iphone.heic"),
-      path.join(folder, "iphone.heic"),
-    );
-    const result = await run(folder, "-m", "tojpg", "iphone.heic");
-    expect(result.stderr).toContain("can't be converted yet");
   });
 
   it("shows the space saved for a folder of screenshots", async () => {

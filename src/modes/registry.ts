@@ -1,6 +1,5 @@
 import {
   audioOutputs,
-  coreImageFormats,
   defaultQualities,
   formatLabels,
   imageInputs,
@@ -152,9 +151,7 @@ function imageModes(): Mode[] {
           `konvertoj -m ${from}to${to} ${sampleFiles[from]}`,
           `konvertoj -m ${from}to${to} ./images -o ./converted`,
         ],
-        ...(coreImageFormats.includes(from) && coreImageFormats.includes(to)
-          ? { run: convertTo(to) }
-          : {}),
+        run: convertTo(to),
       })),
   );
   const anyImage = imageOutputs
@@ -167,7 +164,7 @@ function imageModes(): Mode[] {
       options: imageConversionOptions(to, imageInputs),
       description: `Convert ${anyImageLabel} to ${label(to)}`,
       examples: [`konvertoj -m to${to} ./downloads -o ./${to}s`],
-      ...(coreImageFormats.includes(to) ? { run: convertTo(to) } : {}),
+      run: convertTo(to),
     }));
   return [...pairs, ...anyImage];
 }

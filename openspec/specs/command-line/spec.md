@@ -98,7 +98,7 @@ An option that exists for other modes but not the chosen one SHALL fail with exi
 - **THEN** it fails with exit code `1` and a plain-English message saying `--quality` needs a value, or `--overwrite` doesn't take one
 
 ### Requirement: Option values are checked
-A value outside its option's declared word list, range or colour rule SHALL fail with exit code `1` before the mode runs. The message SHALL name the option, the value given, and the allowed words, range or kind of value. Word matching SHALL ignore letter case. Options without a declared rule SHALL pass through unchecked. Option values SHALL be checked before inputs, so a wrong value is reported even when the inputs are wrong too.
+A value outside its option's declared word list, range, colour rule or size list rule SHALL fail with exit code `1` before the mode runs. The message SHALL name the option, the value given, and the allowed words, range or kind of value. Word matching SHALL ignore letter case. Options without a declared rule SHALL pass through unchecked. Option values SHALL be checked before inputs, so a wrong value is reported even when the inputs are wrong too.
 
 #### Scenario: Word not allowed
 - **WHEN** a user runs `konvertoj -m resize photo.jpg --fit banana`
@@ -114,7 +114,7 @@ A value outside its option's declared word list, range or colour rule SHALL fail
 
 #### Scenario: Valid values pass
 - **WHEN** a user runs `-m heictojpg photo.heic --quality 1`, `--quality 100`, or `-m movtomp4 clip.mov --quality HIGH`, with those files present
-- **THEN** none fails an option check, and each reaches the "isn't available yet" message
+- **THEN** none fails an option check
 
 #### Scenario: Same name, different rule
 - **WHEN** a user runs `-m movtomp4 clip.mov --quality 80`
@@ -131,6 +131,10 @@ A value outside its option's declared word list, range or colour rule SHALL fail
 #### Scenario: Colours accepted
 - **WHEN** a user runs `-m pngtojpg logo.png` with `--background red`, `--background #f80`, `--background #ff8800` or `--background rgb(255, 136, 0)`
 - **THEN** no option check fails
+
+#### Scenario: Icon sizes
+- **WHEN** a user runs `-m pngtoico logo.png` with `--sizes 0`, `--sizes 257`, `--sizes abc` or `--sizes 16,,32`
+- **THEN** each fails with exit code `1`, saying `--sizes` must be whole numbers from 1 to 256 separated by commas
 
 #### Scenario: Unchecked values pass through
 - **WHEN** a user runs `-m crop photo.jpg --aspect banana`
@@ -163,16 +167,16 @@ A mode name asking to create HEIC or SVG (`<format>toheic`, `toheic`, `<format>t
 A valid command for a registered mode whose work isn't built yet SHALL fail with exit code `1` and say `<mode> isn't available yet.` This SHALL happen after its inputs have been found and its outputs planned, so input mistakes are reported first, and SHALL NOT create any folders. `--dry-run` SHALL still print the plan and exit with `0`.
 
 #### Scenario: Running an unbuilt mode
-- **WHEN** a user runs `konvertoj -m heictojpg photo.heic` before HEIC conversion exists, and `photo.heic` exists
-- **THEN** it fails with exit code `1` and "heictojpg isn't available yet."
+- **WHEN** a user runs `konvertoj -m movtomp4 clip.mov` before video conversion exists, and `clip.mov` exists
+- **THEN** it fails with exit code `1` and "movtomp4 isn't available yet."
 
 #### Scenario: Input mistakes come first
-- **WHEN** a user runs `konvertoj -m heictojpg missing.heic` and the file doesn't exist
-- **THEN** it fails, naming `missing.heic`, without mentioning that the mode isn't available
+- **WHEN** a user runs `konvertoj -m movtomp4 missing.mov` and the file doesn't exist
+- **THEN** it fails, naming `missing.mov`, without mentioning that the mode isn't available
 
 #### Scenario: Dry run of an unbuilt mode
-- **WHEN** a user runs `konvertoj -m heictojpg photo.heic --dry-run`
-- **THEN** it prints `photo.heic → photo.jpg` and exits with `0`
+- **WHEN** a user runs `konvertoj -m movtomp4 clip.mov --dry-run`
+- **THEN** it prints `clip.mov → clip.mp4` and exits with `0`
 
 ### Requirement: Errors are for people
 Every command-line error SHALL go to standard error as a plain-English message without a stack trace, and SHALL say how to fix the problem. An unexpected error anywhere in konvertoj SHALL also be shown as a plain-English message that suggests running again with `--verbose`, with exit code `1`. Its technical details and stack trace SHALL appear only with `--verbose`.

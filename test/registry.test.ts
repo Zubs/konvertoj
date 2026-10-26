@@ -198,6 +198,14 @@ describe("mode registry", () => {
     });
     expect(option("pngtojpg", "background")?.rule).toEqual({ colour: true });
     expect(option("rotate", "background")?.rule).toEqual({ colour: true });
+    expect(option("pngtoico", "sizes")?.rule).toEqual({
+      sizeList: { min: 1, max: 256 },
+    });
+    expect(option("svgtopng", "dpi")?.rule).toEqual({
+      min: 1,
+      max: 7200,
+      wholeNumber: false,
+    });
   });
 
   it("gives TIFF quality no default", () => {

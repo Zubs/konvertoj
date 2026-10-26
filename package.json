@@ -31,8 +31,11 @@
     "vitest": "^5.0.5"
   },
   "dependencies": {
+    "bmp-ts": "^1.0.9",
+    "decode-ico": "^0.4.1",
     "fast-glob": "^3.3.3",
     "file-type": "^22.2.0",
+    "heic-decode": "^2.1.0",
     "sharp": "^0.35.5"
   }
 }

@@ -3,7 +3,8 @@ import { isColour } from "./colours.js";
 export type OptionRule =
   | { choices: string[] }
   | { min?: number; max?: number; wholeNumber: boolean }
-  | { colour: true };
+  | { colour: true }
+  | { sizeList: { min: number; max: number } };
 
 export interface OptionDefinition {
   name: string;
@@ -95,13 +96,14 @@ export const sizes = value(
   "Icon sizes in pixels, separated by commas",
   {
     defaultValue: "16,32,48",
+    rule: { sizeList: { min: 1, max: 256 } },
   },
 );
 export const svgDpi = value(
   "dpi",
   "number",
   "Sharpness for drawing the SVG, in dots per inch (default: the SVG's own size)",
-  { rule: { min: 1, wholeNumber: false } },
+  { rule: { min: 1, max: 7200, wholeNumber: false } },
 );
 
 export const pageSize = value(
@@ -320,6 +322,9 @@ export function describeRule(rule: OptionRule): string {
   if ("colour" in rule) {
     return "a colour such as white, #ff8800 or rgb(255,136,0)";
   }
+  if ("sizeList" in rule) {
+    return `whole numbers from ${rule.sizeList.min} to ${rule.sizeList.max} separated by commas`;
+  }
   const kind = rule.wholeNumber ? "a whole number" : "a number";
   if (rule.min !== undefined && rule.max !== undefined) {
     return `${kind} from ${rule.min} to ${rule.max}`;
@@ -338,6 +343,15 @@ export function followsRule(rule: OptionRule, given: string): boolean {
   }
   if ("colour" in rule) {
     return isColour(given);
+  }
+  if ("sizeList" in rule) {
+    return (
+      /^\d+(,\d+)*$/.test(given) &&
+      given
+        .split(",")
+        .map(Number)
+        .every((size) => size >= rule.sizeList.min && size <= rule.sizeList.max)
+    );
   }
   const pattern = rule.wholeNumber ? /^-?\d+$/ : /^-?\d+(\.\d+)?$/;
   if (!pattern.test(given)) {

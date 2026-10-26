@@ -234,9 +234,17 @@ describe("main", () => {
   ])(
     "accepts valid values for %s %s %s %s",
     async (mode, file, option, value) => {
+      const result = await run("-m", mode, file, option, value);
+      expect(result.stderr).not.toContain(" must be ");
+    },
+  );
+
+  it.each(["0", "257", "abc", "16,,32"])(
+    "rejects --sizes %s",
+    async (value) => {
       await expectFailure(
-        ["-m", mode, file, option, value],
-        `${mode} isn't available yet.`,
+        ["-m", "pngtoico", "logo.png", "--sizes", value],
+        "--sizes must be whole numbers from 1 to 256 separated by commas",
       );
     },
   );
@@ -251,8 +259,8 @@ describe("main", () => {
 
   it("says when a mode isn't built yet", async () => {
     await expectFailure(
-      ["-m", "heictojpg", "photo.heic"],
-      "heictojpg isn't available yet.",
+      ["-m", "movtomp4", "clip.mov"],
+      "movtomp4 isn't available yet.",
     );
   });
   it("checks option values before inputs", async () => {
@@ -265,8 +273,8 @@ describe("main", () => {
 
   it("reports input mistakes before saying a mode isn't built", async () => {
     const result = await expectFailure(
-      ["-m", "heictojpg", "missing.heic"],
-      "missing.heic can't be found",
+      ["-m", "movtomp4", "missing.mov"],
+      "missing.mov can't be found",
     );
     expect(result.stderr).not.toContain("isn't available yet");
   });
@@ -383,8 +391,8 @@ describe("main", () => {
 
   it("says an unbuilt mode isn't available without creating the -o folder", async () => {
     await expectFailure(
-      ["-m", "heictojpg", "photo.heic", "-o", "converted/"],
-      "heictojpg isn't available yet.",
+      ["-m", "movtomp4", "clip.mov", "-o", "converted/"],
+      "movtomp4 isn't available yet.",
     );
     expect(existsSync(path.join(workFolder, "converted"))).toBe(false);
   });

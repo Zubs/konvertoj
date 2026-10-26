@@ -2,7 +2,12 @@ import { Buffer } from "node:buffer";
 import { open, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileTypeFromFile } from "file-type";
-import { damagedFile, isUserError, UserError } from "./errors.js";
+import {
+  damagedFile,
+  isFileSystemError,
+  isUserError,
+  UserError,
+} from "./errors.js";
 import type { InputFile } from "./inputs.js";
 import { formatLabels } from "./modes/formats.js";
 import {
@@ -61,7 +66,7 @@ export async function detectFormat(file: string): Promise<string | undefined> {
   try {
     found = await fileTypeFromFile(file);
   } catch (error) {
-    if (typeof (error as NodeJS.ErrnoException).code === "string") {
+    if (isFileSystemError(error)) {
       throw error;
     }
     throw damagedFile(error);
