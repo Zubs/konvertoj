@@ -87,6 +87,7 @@ export async function runBatch(
         inputs = checked.inputs;
       }
       let savedPath: string | undefined;
+      const notes: string[] = [];
       const outcome = await mode.run({
         inputs,
         output,
@@ -99,6 +100,7 @@ export async function runBatch(
         },
         progress: (fraction) => reporter.progress(fraction, startedAt),
         detail: (message) => reporter.detail(message),
+        note: (message) => notes.push(message),
         signal: settings.signal,
       });
       if (outcome?.skipped || !savedPath) {
@@ -111,7 +113,7 @@ export async function runBatch(
       result.converted++;
       result.sizeBefore += before;
       result.sizeAfter += after;
-      reporter.succeeded({ ...item, output: savedPath }, before, after);
+      reporter.succeeded({ ...item, output: savedPath }, before, after, notes);
     } catch (error) {
       if (settings.signal.aborted) {
         return;

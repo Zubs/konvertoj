@@ -78,6 +78,26 @@ describe("formatChange", () => {
 });
 
 describe("Reporter", () => {
+  it("prints notes after a success line, but not when quiet", () => {
+    const note = "only the first frame was kept, because JPG can't be animated";
+    const loud = fakeOutput(false);
+    new Reporter(
+      loud.output,
+      { quiet: false, verbose: false, cwd },
+      1,
+    ).succeeded(item("a.gif", "a.jpg"), 10, 10, [note]);
+    expect(loud.written.out).toBe(
+      `✓ a.gif → a.jpg  10 B → 10 B\n  Note: ${note}\n`,
+    );
+    const quiet = fakeOutput(false);
+    new Reporter(
+      quiet.output,
+      { quiet: true, verbose: false, cwd },
+      1,
+    ).succeeded(item("a.gif", "a.jpg"), 10, 10, [note]);
+    expect(quiet.written.out).toBe("");
+  });
+
   it("prints a success line and a summary", () => {
     const { output, written } = fakeOutput(false);
     const time = clock();

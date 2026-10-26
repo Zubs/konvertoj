@@ -226,7 +226,11 @@ describe("main", () => {
     ["heictojpg", "photo.heic", "--quality", "100"],
     ["movtomp4", "clip.mov", "--quality", "HIGH"],
     ["rotate", "photo.jpg", "--angle", "-90"],
-    ["heictojpg", "photo.heic", "--background", "banana"],
+    ["crop", "photo.jpg", "--aspect", "banana"],
+    ["heictojpg", "photo.heic", "--background", "red"],
+    ["heictojpg", "photo.heic", "--background", "#f80"],
+    ["heictojpg", "photo.heic", "--background", "#FF8800"],
+    ["heictojpg", "photo.heic", "--background", "rgb(255, 136, 0)"],
   ])(
     "accepts valid values for %s %s %s %s",
     async (mode, file, option, value) => {
@@ -236,6 +240,14 @@ describe("main", () => {
       );
     },
   );
+
+  it("rejects a colour it doesn't recognise before touching files", async () => {
+    await expectFailure(
+      ["-m", "pngtojpg", "photo.png", "--background", "banana", "-o", "out/"],
+      "--background must be a colour such as white, #ff8800 or rgb(255,136,0). You gave banana.",
+    );
+    expect(existsSync(path.join(workFolder, "out"))).toBe(false);
+  });
 
   it("says when a mode isn't built yet", async () => {
     await expectFailure(

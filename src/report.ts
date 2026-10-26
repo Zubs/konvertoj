@@ -70,6 +70,15 @@ function formatTimeLeft(seconds: number): string {
   return `about ${Math.round(seconds / 60)} minutes left`;
 }
 
+function technicalDetails(error: unknown): string {
+  const details =
+    error instanceof Error ? (error.stack ?? String(error)) : String(error);
+  const cause = error instanceof Error ? error.cause : undefined;
+  return cause === undefined
+    ? details
+    : `${details}\nCaused by: ${technicalDetails(cause)}`;
+}
+
 export class Reporter {
   private done = 0;
   private jobProgress?: { fraction: number; startedAt: number };
@@ -99,7 +108,12 @@ export class Reporter {
     }
   }
 
-  succeeded(item: PlannedItem, before: number, after: number): void {
+  succeeded(
+    item: PlannedItem,
+    before: number,
+    after: number,
+    notes: string[] = [],
+  ): void {
     this.done++;
     this.jobProgress = undefined;
     if (!this.settings.quiet) {
@@ -111,6 +125,9 @@ export class Reporter {
         "out",
         `${this.paint("out", "green", "✓")} ${this.describe(item)} → ${output}  ${sizes}`,
       );
+      for (const note of notes) {
+        this.line("out", `  Note: ${note}`);
+      }
     }
     this.showBar();
   }
@@ -135,9 +152,7 @@ export class Reporter {
       `${this.paint("err", "red", "✗")} ${this.describe(item)}: ${reason}`,
     );
     if (this.settings.verbose && error !== undefined) {
-      const details =
-        error instanceof Error ? (error.stack ?? String(error)) : String(error);
-      this.line("err", details.replace(/^/gm, "    "));
+      this.line("err", technicalDetails(error).replace(/^/gm, "    "));
     }
     this.showBar();
   }

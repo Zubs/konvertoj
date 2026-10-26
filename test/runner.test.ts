@@ -266,6 +266,16 @@ describe("exitCodeFor", () => {
   });
 });
 
+describe("runBatch notes", () => {
+  it("prints a mode's notes after the file's line", async () => {
+    const cwd = makeFolder();
+    const { text } = await run(cwd, await planFor(cwd, ["noted.txt"]));
+    expect(text).toContain(
+      "✓ noted.txt → noted-copy.txt  9 B → 9 B\n  Note: copied with a note\n",
+    );
+  });
+});
+
 describe("runBatch input checks", () => {
   function recordingMode(name: string) {
     const seen: string[] = [];

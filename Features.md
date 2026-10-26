@@ -15,7 +15,7 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - [x] 3. Inputs and output naming
 - [x] 4. Batch runner and reporting
 - [x] 5. Format detection
-- [ ] 6. Core image conversion
+- [x] 6. Core image conversion
 - [ ] 7. Other image formats
 - [ ] 8. Metadata and strip
 - [ ] 9. Resize and enlarge

@@ -98,7 +98,7 @@ An option that exists for other modes but not the chosen one SHALL fail with exi
 - **THEN** it fails with exit code `1` and a plain-English message saying `--quality` needs a value, or `--overwrite` doesn't take one
 
 ### Requirement: Option values are checked
-A value outside its option's declared word list or range SHALL fail with exit code `1` before the mode runs. The message SHALL name the option, the value given, and the allowed words or range. Word matching SHALL ignore letter case. Options without a declared rule SHALL pass through unchecked. Option values SHALL be checked before inputs, so a wrong value is reported even when the inputs are wrong too.
+A value outside its option's declared word list, range or colour rule SHALL fail with exit code `1` before the mode runs. The message SHALL name the option, the value given, and the allowed words, range or kind of value. Word matching SHALL ignore letter case. Options without a declared rule SHALL pass through unchecked. Option values SHALL be checked before inputs, so a wrong value is reported even when the inputs are wrong too.
 
 #### Scenario: Word not allowed
 - **WHEN** a user runs `konvertoj -m resize photo.jpg --fit banana`
@@ -124,9 +124,17 @@ A value outside its option's declared word list or range SHALL fail with exit co
 - **WHEN** a user runs `-m rotate photo.jpg --angle -90`
 - **THEN** no option check fails, because `--angle` allows any number
 
+#### Scenario: Colour not recognised
+- **WHEN** a user runs `-m pngtojpg logo.png --background banana`
+- **THEN** it fails with exit code `1`, naming `--background` and `banana` and giving examples such as `white`, `#ff8800` and `rgb(255,136,0)`, and no file is written
+
+#### Scenario: Colours accepted
+- **WHEN** a user runs `-m pngtojpg logo.png` with `--background red`, `--background #f80`, `--background #ff8800` or `--background rgb(255, 136, 0)`
+- **THEN** no option check fails
+
 #### Scenario: Unchecked values pass through
-- **WHEN** a user runs `-m heictojpg photo.heic --background banana`
-- **THEN** no option check fails, because `--background` has no declared rule (colours are checked by feature 6)
+- **WHEN** a user runs `-m crop photo.jpg --aspect banana`
+- **THEN** no option check fails, because `--aspect` has no declared rule (aspect ratios are checked by feature 11)
 
 #### Scenario: Option checked before inputs
 - **WHEN** a user runs `-m heictojpg missing.heic --quality 101` and `missing.heic` doesn't exist

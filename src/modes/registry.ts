@@ -1,5 +1,7 @@
 import {
   audioOutputs,
+  coreImageFormats,
+  defaultQualities,
   formatLabels,
   imageInputs,
   imageOutputs,
@@ -84,6 +86,7 @@ export interface RunContext {
   save(write: (temporaryPath: string) => Promise<void>): Promise<string>;
   progress(fraction: number): void;
   detail(message: string): void;
+  note(message: string): void;
   signal: AbortSignal;
 }
 
@@ -94,16 +97,15 @@ function label(format: string): string {
   return formatLabels[format] ?? format;
 }
 
+function convertTo(target: string): Mode["run"] {
+  return async (context) =>
+    (await import("../convert/image.js")).convertImage(context, target);
+}
+
 function targetEncodingOptions(target: string): OptionDefinition[] {
-  const defaultQualities: Record<string, string> = {
-    jpg: "80",
-    webp: "80",
-    avif: "50",
-    tiff: "80",
-  };
   const options: OptionDefinition[] = [];
-  if (target in defaultQualities) {
-    options.push(imageQuality(defaultQualities[target]));
+  if (target in defaultQualities || target === "tiff") {
+    options.push(imageQuality(defaultQualities[target]?.toString()));
   }
   if (target === "webp" || target === "avif") {
     options.push(lossless);
@@ -150,6 +152,9 @@ function imageModes(): Mode[] {
           `konvertoj -m ${from}to${to} ${sampleFiles[from]}`,
           `konvertoj -m ${from}to${to} ./images -o ./converted`,
         ],
+        ...(coreImageFormats.includes(from) && coreImageFormats.includes(to)
+          ? { run: convertTo(to) }
+          : {}),
       })),
   );
   const anyImage = imageOutputs
@@ -162,6 +167,7 @@ function imageModes(): Mode[] {
       options: imageConversionOptions(to, imageInputs),
       description: `Convert ${anyImageLabel} to ${label(to)}`,
       examples: [`konvertoj -m to${to} ./downloads -o ./${to}s`],
+      ...(coreImageFormats.includes(to) ? { run: convertTo(to) } : {}),
     }));
   return [...pairs, ...anyImage];
 }

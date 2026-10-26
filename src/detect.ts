@@ -64,7 +64,7 @@ export async function detectFormat(file: string): Promise<string | undefined> {
     if (typeof (error as NodeJS.ErrnoException).code === "string") {
       throw error;
     }
-    throw damagedFile();
+    throw damagedFile(error);
   }
   if (found && found.ext !== "xml") {
     return detectedFormats[found.ext];

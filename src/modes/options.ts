@@ -1,5 +1,9 @@
+import { isColour } from "./colours.js";
+
 export type OptionRule =
-  { choices: string[] } | { min?: number; max?: number; wholeNumber: boolean };
+  | { choices: string[] }
+  | { min?: number; max?: number; wholeNumber: boolean }
+  | { colour: true };
 
 export interface OptionDefinition {
   name: string;
@@ -62,7 +66,7 @@ export const background = value(
   "background",
   "colour",
   "Colour used where transparency is lost, e.g. white, #ff8800 or rgb(255,136,0)",
-  { defaultValue: "white" },
+  { defaultValue: "white", rule: { colour: true } },
 );
 export const grayscale = flag("grayscale", "Make the image black and white");
 export const width = value("width", "pixels", "Width in pixels", {
@@ -279,6 +283,7 @@ export const rotateBackground = value(
   "background",
   "colour",
   "Colour for the corners when the angle isn't a multiple of 90 (default: transparent where possible, otherwise white)",
+  { rule: { colour: true } },
 );
 export const auto = flag(
   "auto",
@@ -312,6 +317,9 @@ export function describeRule(rule: OptionRule): string {
   if ("choices" in rule) {
     return `one of ${rule.choices.join(", ")}`;
   }
+  if ("colour" in rule) {
+    return "a colour such as white, #ff8800 or rgb(255,136,0)";
+  }
   const kind = rule.wholeNumber ? "a whole number" : "a number";
   if (rule.min !== undefined && rule.max !== undefined) {
     return `${kind} from ${rule.min} to ${rule.max}`;
@@ -327,6 +335,9 @@ export function followsRule(rule: OptionRule, given: string): boolean {
     return rule.choices.some(
       (choice) => choice.toLowerCase() === given.toLowerCase(),
     );
+  }
+  if ("colour" in rule) {
+    return isColour(given);
   }
   const pattern = rule.wholeNumber ? /^-?\d+$/ : /^-?\d+(\.\d+)?$/;
   if (!pattern.test(given)) {

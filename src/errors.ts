@@ -6,8 +6,9 @@ export function isUserError(error: unknown): error is Error {
   return error instanceof Error && error.name === "UserError";
 }
 
-export function damagedFile(): UserError {
+export function damagedFile(cause?: unknown): UserError {
   return new UserError(
     "looks damaged and can't be read. Try opening it in another app, or get a fresh copy.",
+    { cause },
   );
 }

@@ -37,8 +37,8 @@ function optionExplanation(option: OptionDefinition): string {
   const hasLimits =
     option.rule &&
     ("choices" in option.rule ||
-      option.rule.min !== undefined ||
-      option.rule.max !== undefined);
+      ("wholeNumber" in option.rule &&
+        (option.rule.min !== undefined || option.rule.max !== undefined)));
   const rule = option.rule && hasLimits ? `, ${describeRule(option.rule)}` : "";
   const defaultValue =
     option.defaultValue === undefined

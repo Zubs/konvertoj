@@ -16,7 +16,7 @@ function userError(message) {
   return error;
 }
 
-async function copy({ inputs, save, detail, signal }) {
+async function copy({ inputs, save, detail, note, signal }) {
   const [input] = inputs;
   const name = path.basename(input.path);
   copyStats.running++;
@@ -31,6 +31,9 @@ async function copy({ inputs, save, detail, signal }) {
     }
     if (name.includes("crash")) {
       throw new Error("boom");
+    }
+    if (name.includes("noted")) {
+      note("copied with a note");
     }
     if (name.includes("skip")) {
       return { skipped: "its name says skip" };

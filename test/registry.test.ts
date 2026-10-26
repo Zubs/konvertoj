@@ -196,6 +196,17 @@ describe("mode registry", () => {
       max: 600,
       wholeNumber: false,
     });
+    expect(option("pngtojpg", "background")?.rule).toEqual({ colour: true });
+    expect(option("rotate", "background")?.rule).toEqual({ colour: true });
+  });
+
+  it("gives TIFF quality no default", () => {
+    expect(option("pngtotiff", "quality")?.rule).toEqual({
+      min: 1,
+      max: 100,
+      wholeNumber: true,
+    });
+    expect(option("pngtotiff", "quality")?.defaultValue).toBeUndefined();
   });
 
   it("only declares defaults that pass their own rule", () => {
