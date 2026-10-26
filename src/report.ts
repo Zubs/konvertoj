@@ -72,7 +72,8 @@ function formatDuration(milliseconds: number): string {
 
 function formatTimeLeft(seconds: number): string {
   if (seconds < 60) {
-    return `about ${Math.max(1, Math.round(seconds))} seconds left`;
+    const whole = Math.max(1, Math.round(seconds));
+    return `about ${whole} second${whole === 1 ? "" : "s"} left`;
   }
   return `about ${Math.round(seconds / 60)} minutes left`;
 }

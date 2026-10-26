@@ -79,6 +79,7 @@ export interface Mode {
   multipleOutputs?: true;
   usesFfmpeg?: true;
   checkOptions?: (options: RunContext["options"]) => string | undefined;
+  warnings?: (options: RunContext["options"]) => string[];
   run?: (context: RunContext) => Promise<{ skipped: string } | void>;
 }
 
@@ -243,6 +244,25 @@ function pdfRun(
       target ?? "png",
     );
   };
+}
+
+function timeRangeProblem(options: RunContext["options"]): string | undefined {
+  if (typeof options.end !== "string") {
+    return undefined;
+  }
+  const seconds = (value: string) =>
+    value
+      .split(":")
+      .map(Number)
+      .reduce((total, part) => total * 60 + part, 0);
+  const startAt =
+    typeof options.start === "string" ? seconds(options.start) : 0;
+  if (seconds(options.end) > startAt) {
+    return undefined;
+  }
+  return typeof options.start === "string"
+    ? `--end ${options.end} must be after --start ${options.start}.`
+    : `--end ${options.end} must be after the start of the video.`;
 }
 
 function targetEncodingOptions(target: string): OptionDefinition[] {
@@ -411,6 +431,14 @@ function videoAndAudioDefinitions(): Mode[] {
     examples: ["konvertoj -m tomp4 ./videos -o ./mp4s"],
   };
   const audioOptions = [bitrate, start, end];
+  const audioRun =
+    (to: string): Mode["run"] =>
+    async (context) =>
+      (await import("../video/audio.js")).extractAudio(context, to);
+  const audioWarnings = (to: string) => (options: RunContext["options"]) =>
+    (to === "wav" || to === "flac") && options.bitrate !== undefined
+      ? [`--bitrate is ignored for ${label(to)}, which is lossless.`]
+      : [];
   const toAudio = videoInputs.flatMap((from) =>
     audioOutputs.map((to) => ({
       name: `${from}to${to}`,
@@ -418,6 +446,9 @@ function videoAndAudioDefinitions(): Mode[] {
       inputs: [from],
       output: to,
       options: audioOptions,
+      run: audioRun(to),
+      checkOptions: timeRangeProblem,
+      warnings: audioWarnings(to),
       description: `Extract the audio from ${label(from)} video as ${label(to)}`,
       examples: [`konvertoj -m ${from}to${to} ${sampleFiles[from]}`],
     })),
@@ -428,6 +459,9 @@ function videoAndAudioDefinitions(): Mode[] {
     inputs: videoInputs,
     output: to,
     options: audioOptions,
+    run: audioRun(to),
+    checkOptions: timeRangeProblem,
+    warnings: audioWarnings(to),
     description: `Extract the audio from ${anyVideoLabel} as ${label(to)}`,
     examples: [`konvertoj -m to${to} talk.mp4 --start 1:30 --end 45:00`],
   }));

@@ -234,7 +234,7 @@ describe("main", () => {
     ["heictojpg", "photo.heic", "--quality", "100"],
     ["movtomp4", "clip.mov", "--quality", "HIGH"],
     ["rotate", "photo.jpg", "--angle", "-90"],
-    ["mp4tomp3", "clip.mp4", "--start", "banana"],
+    ["pngtojpg", "photo.png", "--output", "my banana"],
     ["heictojpg", "photo.heic", "--background", "red"],
     ["heictojpg", "photo.heic", "--background", "#f80"],
     ["heictojpg", "photo.heic", "--background", "#FF8800"],
@@ -267,8 +267,8 @@ describe("main", () => {
 
   it("says when a mode isn't built yet", async () => {
     await expectFailure(
-      ["-m", "mp4tomp3", "clip.mp4"],
-      "mp4tomp3 isn't available yet.",
+      ["-m", "togif", "clip.mp4"],
+      "togif isn't available yet.",
     );
   });
   it("checks a mode's own option rules before inputs", async () => {
@@ -289,7 +289,7 @@ describe("main", () => {
 
   it("reports input mistakes before saying a mode isn't built", async () => {
     const result = await expectFailure(
-      ["-m", "mp4tomp3", "missing.mp4"],
+      ["-m", "togif", "missing.mp4"],
       "missing.mp4 can't be found",
     );
     expect(result.stderr).not.toContain("isn't available yet");
@@ -407,8 +407,8 @@ describe("main", () => {
 
   it("says an unbuilt mode isn't available without creating the -o folder", async () => {
     await expectFailure(
-      ["-m", "mp4tomp3", "clip.mp4", "-o", "converted/"],
-      "mp4tomp3 isn't available yet.",
+      ["-m", "togif", "clip.mp4", "-o", "converted/"],
+      "togif isn't available yet.",
     );
     expect(existsSync(path.join(workFolder, "converted"))).toBe(false);
   });

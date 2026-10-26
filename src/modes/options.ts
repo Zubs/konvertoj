@@ -172,15 +172,21 @@ export const fps = value(
     rule: { min: 1, max: 30, wholeNumber: true },
   },
 );
+const timeRule = {
+  pattern: /^(\d+(\.\d+)?|\d+:[0-5]\d(\.\d+)?|\d+:[0-5]\d:[0-5]\d(\.\d+)?)$/,
+  description: "a time such as 90, 1:30 or 1:02:30",
+};
 export const start = value(
   "start",
   "time",
   "Where to start, e.g. 90, 1:30 or 1:02:30",
+  { rule: timeRule },
 );
 export const end = value(
   "end",
   "time",
   "Where to stop, e.g. 90, 1:30 or 1:02:30",
+  { rule: timeRule },
 );
 export const speed = value("speed", "number", "Playback speed", {
   defaultValue: "1",

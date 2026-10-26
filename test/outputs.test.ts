@@ -244,3 +244,25 @@ describe("planOutputs", () => {
     expect(() => mkdirSync(path.join(cwd, "converted"))).not.toThrow();
   });
 });
+
+describe("files already in the output format", () => {
+  it("get their names last, so the real conversions keep the lower numbers", async () => {
+    const folder = makeFolder(["f/b.webm", "f/b.mp3"]);
+    const { inputs } = await resolveInputs(["f"], {
+      recursive: false,
+      cwd: folder,
+    });
+    const mode = findMode("tomp3");
+    if (!mode) {
+      throw new Error("No tomp3");
+    }
+    const plan = planOutputs(mode, inputs, { overwrite: false, cwd: folder });
+    const outputFor = (name: string) =>
+      plan.items.find((item) => item.inputs[0]?.path.endsWith(name))?.output;
+    expect(path.basename(outputFor("b.webm") ?? "")).toBe("b (1).mp3");
+    expect(path.basename(outputFor("b.mp3") ?? "")).toBe("b (2).mp3");
+    expect(
+      plan.items.map((item) => path.basename(item.inputs[0]?.path ?? "")),
+    ).toEqual(["b.mp3", "b.webm"]);
+  });
+});

@@ -115,7 +115,8 @@ A value option whose valid values are a fixed list of words, a number range, a c
   - `compress`'s `--target-size` allows a positive size in `kb` or `mb`, in any letter case, such as `200kb` or `1.5MB`,
   - `crop`'s `--aspect` allows a ratio of two positive numbers, such as `16:9` or `1:1`,
   - `colorpick`'s `--at` allows two whole numbers of 0 or more separated by a comma, such as `10,20`,
-  - `pdftopng`'s `--page` allows `all`, a page, a range or a comma-separated list of pages and ranges, such as `3`, `1-5` or `1,3,7`.
+  - `pdftopng`'s `--page` allows `all`, a page, a range or a comma-separated list of pages and ranges, such as `3`, `1-5` or `1,3,7`,
+  - `mp4tomp3`'s and `togif`'s `--start` and `--end` allow times such as `90`, `1:30` or `1:02:30`.
 
 #### Scenario: Defaults are valid
 - **WHEN** every option default in the registry is checked against its option's rule

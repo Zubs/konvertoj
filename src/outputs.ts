@@ -142,7 +142,25 @@ export function planOutputs(
     );
   }
 
-  const items = inputs.map((input): PlannedItem => {
+  const alreadyInOutputFormat = (input: InputFile) =>
+    mode.output !== "same" &&
+    extensionsFor(mode.output).includes(
+      path.extname(input.path).slice(1).toLowerCase(),
+    );
+  const claimingOrder = [
+    ...inputs.filter((input) => !alreadyInOutputFormat(input)),
+    ...inputs.filter(alreadyInOutputFormat),
+  ];
+  const planned = new Map<InputFile, PlannedItem>();
+  for (const input of claimingOrder) {
+    planned.set(input, planItem(input));
+  }
+  const items = inputs.map(
+    (input) => planned.get(input) ?? { inputs: [input] },
+  );
+  return { items, warnings };
+
+  function planItem(input: InputFile): PlannedItem {
     if (input.unreadable) {
       return { inputs: [input] };
     }
@@ -157,6 +175,5 @@ export function planOutputs(
       wanted = withExtension(target, mode, input, warnings);
     }
     return { inputs: [input], output: claim(wanted) };
-  });
-  return { items, warnings };
+  }
 }

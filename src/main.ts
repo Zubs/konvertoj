@@ -253,6 +253,7 @@ export async function main(
     throw error;
   }
 
+  plan.warnings.push(...(mode.warnings?.(values) ?? []));
   for (const warning of plan.warnings) {
     output.err(`Warning: ${warning}\n`);
   }

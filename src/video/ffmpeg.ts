@@ -572,3 +572,21 @@ export function probeMedia(
     );
   });
 }
+
+const encoderLists = new Map<string, Promise<string>>();
+
+export function encoders(file: string): Promise<string> {
+  let list = encoderLists.get(file);
+  if (!list) {
+    list = new Promise((resolve) => {
+      execFile(
+        file,
+        ["-hide_banner", "-encoders"],
+        { windowsHide: true, maxBuffer: 4 * 1024 * 1024 },
+        (_error, stdout) => resolve(String(stdout)),
+      );
+    });
+    encoderLists.set(file, list);
+  }
+  return list;
+}

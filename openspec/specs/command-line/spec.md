@@ -98,7 +98,7 @@ An option that exists for other modes but not the chosen one SHALL fail with exi
 - **THEN** it fails with exit code `1` and a plain-English message saying `--quality` needs a value, or `--overwrite` doesn't take one
 
 ### Requirement: Option values are checked
-A value outside its option's declared word list, range, colour rule or size list rule SHALL fail with exit code `1` before the mode runs. The message SHALL name the option, the value given, and the allowed words, range or kind of value. Word matching SHALL ignore letter case. Options without a declared rule SHALL pass through unchecked. Option values SHALL be checked before inputs, so a wrong value is reported even when the inputs are wrong too.
+A value outside its option's declared word list, range, colour rule, size list rule or pattern SHALL fail with exit code `1` before the mode runs. The message SHALL name the option, the value given, and the allowed words, range or kind of value. Word matching SHALL ignore letter case. Options without a declared rule SHALL pass through unchecked. Option values SHALL be checked before inputs, so a wrong value is reported even when the inputs are wrong too.
 
 #### Scenario: Word not allowed
 - **WHEN** a user runs `konvertoj -m resize photo.jpg --fit banana`
@@ -137,8 +137,8 @@ A value outside its option's declared word list, range, colour rule or size list
 - **THEN** each fails with exit code `1`, saying `--sizes` must be whole numbers from 1 to 256 separated by commas
 
 #### Scenario: Unchecked values pass through
-- **WHEN** a user runs `-m mp4tomp3 talk.mp4 --start banana`
-- **THEN** no option check fails, because `--start` has no declared rule (times are checked by feature 16)
+- **WHEN** a user runs `-m pngtojpg logo.png -o "my banana"`
+- **THEN** no option check fails, because `-o` takes any name and has no declared rule
 
 #### Scenario: Option checked before inputs
 - **WHEN** a user runs `-m heictojpg missing.heic --quality 101` and `missing.heic` doesn't exist
@@ -167,16 +167,16 @@ A mode name asking to create HEIC or SVG (`<format>toheic`, `toheic`, `<format>t
 A valid command for a registered mode whose work isn't built yet SHALL fail with exit code `1` and say `<mode> isn't available yet.` This SHALL happen after its inputs have been found and its outputs planned, so input mistakes are reported first, and SHALL NOT create any folders. `--dry-run` SHALL still print the plan and exit with `0`.
 
 #### Scenario: Running an unbuilt mode
-- **WHEN** a user runs `konvertoj -m mp4tomp3 clip.mp4` before audio extraction exists, and `clip.mp4` exists
-- **THEN** it fails with exit code `1` and "mp4tomp3 isn't available yet."
+- **WHEN** a user runs `konvertoj -m togif clip.mp4` before GIF making exists, and `clip.mp4` exists
+- **THEN** it fails with exit code `1` and "togif isn't available yet."
 
 #### Scenario: Input mistakes come first
-- **WHEN** a user runs `konvertoj -m mp4tomp3 missing.mp4` and the file doesn't exist
+- **WHEN** a user runs `konvertoj -m togif missing.mp4` and the file doesn't exist
 - **THEN** it fails, naming `missing.mp4`, without mentioning that the mode isn't available
 
 #### Scenario: Dry run of an unbuilt mode
-- **WHEN** a user runs `konvertoj -m mp4tomp3 clip.mp4 --dry-run`
-- **THEN** it prints `clip.mp4 → clip.mp3` and exits with `0`
+- **WHEN** a user runs `konvertoj -m togif clip.mp4 --dry-run`
+- **THEN** it prints `clip.mp4 → clip.gif` and exits with `0`
 
 ### Requirement: Errors are for people
 Every command-line error SHALL go to standard error as a plain-English message without a stack trace, and SHALL say how to fix the problem. An unexpected error anywhere in konvertoj SHALL also be shown as a plain-English message that suggests running again with `--verbose`, with exit code `1`. Its technical details and stack trace SHALL appear only with `--verbose`.
@@ -232,3 +232,10 @@ For a mode that shows details instead of creating files, `-o`/`--output` SHALL f
 #### Scenario: Nothing to do
 - **WHEN** a user runs `konvertoj --install-video` with FFmpeg 6 on the `PATH`
 - **THEN** it says FFmpeg is already installed, naming it, and exits with `0`
+
+### Requirement: Mode warnings
+A mode MAY declare warnings about the options given, such as an option that has no effect for its format. They SHALL be printed on standard error as `Warning: <message>`, once, before any file is processed, and SHALL NOT change the exit code.
+
+#### Scenario: Ignored bitrate
+- **WHEN** a user runs `konvertoj -m towav talk.mp4 --bitrate 320k`
+- **THEN** standard error shows one warning that `--bitrate` is ignored for WAV, and the WAV is written

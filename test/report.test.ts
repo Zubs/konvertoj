@@ -356,3 +356,19 @@ describe("Reporter", () => {
     );
   });
 });
+
+describe("time left", () => {
+  it("says one second, not one seconds", () => {
+    const { output, written } = fakeOutput(true);
+    const time = clock();
+    const reporter = new Reporter(
+      output,
+      { quiet: false, verbose: false, cwd },
+      2,
+      time.now,
+    );
+    time.advance(1000);
+    reporter.progress(0.99, 0);
+    expect(written.err).toContain("about 1 second left");
+  });
+});

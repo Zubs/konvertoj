@@ -39,6 +39,12 @@ const detectedFormats: Record<string, string> = {
   webm: "webm",
   m4v: "m4v",
   mp4: "mp4",
+  mp3: "mp3",
+  wav: "wav",
+  flac: "flac",
+  m4a: "m4a",
+  ogg: "ogg",
+  opus: "ogg",
 };
 
 const svgStart =
@@ -92,6 +98,11 @@ export function withArticle(format: string): string {
 
 function wrongKind(mode: Mode, format: string): UserError {
   const accepting = modes.filter((other) => other.inputs.includes(format));
+  if (accepting.length === 0) {
+    return new UserError(
+      `is ${withArticle(format)}, which ${mode.name} can't use. konvertoj doesn't convert ${shortLabel(format)} files: it extracts audio from videos, but doesn't convert between audio formats.`,
+    );
+  }
   const ordered = [
     ...accepting.filter((other) => other.name.startsWith(`${format}to`)),
     ...accepting.filter((other) => !other.name.startsWith(`${format}to`)),

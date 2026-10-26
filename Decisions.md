@@ -111,3 +111,15 @@ Decisions taken while building the features in [Features.md](Features.md) that g
 - **CI makes FFmpeg available with `--install-video`.** Before the tests, CI runs `konvertoj --install-video`. Where a runner has no FFmpeg, this downloads and verifies the real add-on. Video tests are skipped wherever no FFmpeg can be found.
 - **The main video stream is the one converted.** Cover pictures (attached pictures, or still-image codecs such as MJPEG and PNG) stored as an extra video stream are skipped, and the stream marked as the default is preferred, so a cover image never replaces the video.
 - **`--strip-metadata` works for video.** It removes the file's details, including any GPS location, and its chapters. Without it, the video's details are kept, as for images.
+
+## 16. Audio from video
+
+- **OGG uses Opus when FFmpeg has no Vorbis encoder.** Some FFmpeg builds, such as Homebrew's, have no Vorbis encoder. OGG files are then written with Opus, which every player that opens OGG also plays.
+- **WAV and FLAC are 16-bit.** Both hold exactly the same samples, so either can be used as a lossless copy of the sound.
+- **The first audio track is extracted.** Extra tracks (other languages, commentary) are left out.
+- **`--start` and `--end` are checked for `togif` too.** They are the same options, and Features.md says `togif`'s times work "as in feature 16".
+- **`--end 0` on its own is rejected.** A missing `--start` counts as the start of the video, so `--end` must come after it. Otherwise konvertoj would write an empty file and report it as converted.
+- **Audio files are recognised, but not converted.** MP3, WAV, FLAC, M4A and OGG files are now detected, so earlier results found in a folder are skipped as "already an MP3", and an audio file given directly gets a clear message: konvertoj extracts audio from videos, but doesn't convert between audio formats (out of scope in Spec.md).
+- **Warnings come from the mode registry.** Modes can declare warnings about their options, printed once before any file is processed. WAV and FLAC use this to say that `--bitrate` is ignored.
+- **Opus is capped at 256k.** When OGG uses Opus, the highest bitrate it accepts for a one-channel recording is 256k, so `--bitrate 320k` is saved at 256k with a note, instead of failing on recorded talks.
+- **Files already in the output format get their names last.** In a folder with `b.webm` and `b.mp3`, `tomp3` names the real conversion `b (1).mp3`. The existing `b.mp3`, which will be skipped, is planned after it, so it no longer pushes the new file to `b (2).mp3`.
