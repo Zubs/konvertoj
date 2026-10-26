@@ -347,7 +347,7 @@ function pdfModes(): Mode[] {
     run: pdfRun("createPdf"),
     description: `Turn ${label(from)} images into one PDF`,
     examples: [
-      `konvertoj -m ${from}topdf ./scans -o scans`,
+      `konvertoj -m ${from}topdf ./scans -o scans.pdf`,
       `konvertoj -m ${from}topdf ${sampleFiles[from]}`,
     ],
   }));
@@ -361,7 +361,7 @@ function pdfModes(): Mode[] {
     checkOptions: pdfMarginProblem,
     run: pdfRun("createPdf"),
     description: `Turn ${anyImageLabel} files into one PDF`,
-    examples: ["konvertoj -m topdf ./receipts -o receipts"],
+    examples: ["konvertoj -m topdf ./receipts -o receipts.pdf"],
   };
   const toImages = imageOutputs.map((to) => ({
     name: `pdfto${to}`,

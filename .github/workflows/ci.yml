@@ -19,6 +19,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - name: Check the README's links
+        if: runner.os == 'Linux'
+        run: node scripts/check-links.js
       - run: npm run build
       - name: Install the video add-on
         run: node dist/cli.js --install-video
@@ -92,3 +95,25 @@ jobs:
         run: node scripts/install-size.js "$RUNNER_TEMP/install"
       - name: Smoke test
         run: node scripts/smoke.js "$RUNNER_TEMP/install"
+
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: charmbracelet/vhs-action@v2
+        with:
+          path: docs/demo.tape
+      - name: The demo shows real output
+        run: |
+          test "$(head -c 4 docs/demo.gif)" = "GIF8"
+          grep -q "1 converted, 0 failed" docs/demo.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: demo
+          path: docs/demo.gif

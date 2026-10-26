@@ -1,8 +1,52 @@
 # konvertoj
 
-A local, private command-line tool for converting and editing images, PDFs and a few common video and audio files. Everything runs on your own computer, and nothing is uploaded.
+Convert and edit images, PDFs and a few common video and audio files from the command line, on your own computer. Nothing is uploaded.
 
-konvertoj is in development. Full documentation will arrive with the first release.
+<!-- demo:start -->
+<!-- demo:end -->
+
+## What it does
+
+konvertoj is like an online file converter, but it runs entirely on your computer, so your photos and documents never leave it.
+
+- **Images:** convert between JPG, PNG, WebP, AVIF, GIF, TIFF, BMP and ICO, open iPhone HEIC photos and SVG drawings, and resize, compress, crop, rotate, flip and remove hidden details such as location.
+- **PDFs:** turn images into a PDF, and PDF pages into images.
+- **GIFs:** make a GIF from a video clip or from images.
+- **Video and audio:** convert common videos to MP4, and save the sound from a video as MP3, WAV, M4A, OGG or FLAC.
+- **Tools:** see an image's details and pick colours from it.
+
+It needs nothing but [Node.js](https://nodejs.org/) 22 or newer. Video and audio use FFmpeg, which konvertoj can download for you the first time (see [Video and audio](#video-and-audio)).
+
+## Quick start
+
+Run konvertoj with `npx`, without installing anything:
+
+```bash
+npx konvertoj -m heictojpg holiday.heic
+npx konvertoj -m compress hero.jpg
+npx konvertoj -m topdf ./receipts -o receipts.pdf
+```
+
+The first turns an iPhone photo into `holiday.jpg`, the second makes a smaller copy of `hero.jpg`, and the third puts every image in the `receipts` folder into `receipts.pdf`.
+
+## Install
+
+To have the `konvertoj` command always ready, install it once:
+
+```text
+npm install -g konvertoj
+```
+
+## Usage
+
+```text
+konvertoj -m <mode> <input> -o <output> [options]
+```
+
+- `<input>` is one or more files, folders or patterns such as `*.png`. A folder converts every file in it that the mode accepts; add `-r` to include subfolders.
+- `-o` names the new file, or the folder for several new files. Without it, new files are saved next to the originals.
+- Your original files are never changed, and an existing file is never replaced: konvertoj adds a number to the new name instead, unless you add `--overwrite`.
+- Run `konvertoj --list-modes` to see every mode, and `konvertoj -m <mode> --help` to see a mode's own options and examples.
 
 ## Modes
 
@@ -95,17 +139,17 @@ konvertoj is in development. Full documentation will arrive with the first relea
 
 | Mode | What it does | Example |
 | --- | --- | --- |
-| `jpgtopdf` | Turn JPG images into one PDF | `konvertoj -m jpgtopdf ./scans -o scans` |
-| `pngtopdf` | Turn PNG images into one PDF | `konvertoj -m pngtopdf ./scans -o scans` |
-| `webptopdf` | Turn WebP images into one PDF | `konvertoj -m webptopdf ./scans -o scans` |
-| `aviftopdf` | Turn AVIF images into one PDF | `konvertoj -m aviftopdf ./scans -o scans` |
-| `giftopdf` | Turn GIF images into one PDF | `konvertoj -m giftopdf ./scans -o scans` |
-| `tifftopdf` | Turn TIFF images into one PDF | `konvertoj -m tifftopdf ./scans -o scans` |
-| `bmptopdf` | Turn BMP images into one PDF | `konvertoj -m bmptopdf ./scans -o scans` |
-| `icotopdf` | Turn ICO (icon) images into one PDF | `konvertoj -m icotopdf ./scans -o scans` |
-| `heictopdf` | Turn HEIC (iPhone photo) images into one PDF | `konvertoj -m heictopdf ./scans -o scans` |
-| `svgtopdf` | Turn SVG images into one PDF | `konvertoj -m svgtopdf ./scans -o scans` |
-| `topdf` | Turn any image files into one PDF | `konvertoj -m topdf ./receipts -o receipts` |
+| `jpgtopdf` | Turn JPG images into one PDF | `konvertoj -m jpgtopdf ./scans -o scans.pdf` |
+| `pngtopdf` | Turn PNG images into one PDF | `konvertoj -m pngtopdf ./scans -o scans.pdf` |
+| `webptopdf` | Turn WebP images into one PDF | `konvertoj -m webptopdf ./scans -o scans.pdf` |
+| `aviftopdf` | Turn AVIF images into one PDF | `konvertoj -m aviftopdf ./scans -o scans.pdf` |
+| `giftopdf` | Turn GIF images into one PDF | `konvertoj -m giftopdf ./scans -o scans.pdf` |
+| `tifftopdf` | Turn TIFF images into one PDF | `konvertoj -m tifftopdf ./scans -o scans.pdf` |
+| `bmptopdf` | Turn BMP images into one PDF | `konvertoj -m bmptopdf ./scans -o scans.pdf` |
+| `icotopdf` | Turn ICO (icon) images into one PDF | `konvertoj -m icotopdf ./scans -o scans.pdf` |
+| `heictopdf` | Turn HEIC (iPhone photo) images into one PDF | `konvertoj -m heictopdf ./scans -o scans.pdf` |
+| `svgtopdf` | Turn SVG images into one PDF | `konvertoj -m svgtopdf ./scans -o scans.pdf` |
+| `topdf` | Turn any image files into one PDF | `konvertoj -m topdf ./receipts -o receipts.pdf` |
 | `pdftojpg` | Export PDF pages as JPG images | `konvertoj -m pdftojpg report.pdf -o pages` |
 | `pdftopng` | Export PDF pages as PNG images | `konvertoj -m pdftopng report.pdf -o pages` |
 | `pdftowebp` | Export PDF pages as WebP images | `konvertoj -m pdftowebp report.pdf -o pages` |
@@ -182,6 +226,65 @@ konvertoj is in development. Full documentation will arrive with the first relea
 | `colorpick` | Report the colour at a point, or an image's main colours | `konvertoj -m colorpick logo.png --at 10,10` |
 <!-- modes:end -->
 
+## Common options
+
+These work with every mode. Each mode's own options are shown by `konvertoj -m <mode> --help`.
+
+<!-- options:start -->
+| Option | What it does |
+| --- | --- |
+| `-o, --output <path>` | Name of the new file, or a folder when there are several inputs |
+| `--overwrite` | Replace existing files instead of adding a number to the new name |
+| `--strip-metadata` | Remove camera, date and location details |
+| `-r, --recursive` | Include files in subfolders |
+| `--dry-run` | Show what would be created without writing anything |
+| `-q, --quiet` | Only show errors |
+| `-v, --verbose` | Show every step and full error details |
+| `-h, --help` | Show this help, or a mode's help with -m &lt;mode&gt; --help |
+| `--version` | Show the version |
+| `--list-modes` | List every mode |
+| `--install-video` | Download the video and audio add-on (FFmpeg) in advance |
+<!-- options:end -->
+
+## Video and audio
+
+Video and audio modes use [FFmpeg](https://ffmpeg.org/). If FFmpeg 5 or newer is already installed on your computer, konvertoj uses it. Otherwise, the first time you use a video or audio mode, konvertoj asks whether to download its video add-on, a single FFmpeg program, as a one-time download of about 20 to 30 MB. Nothing is downloaded without your yes, and image and PDF modes never need it.
+
+To download the add-on in advance, for example before going offline or in a script, run:
+
+```text
+konvertoj --install-video
+```
+
+The add-on is checked against a stored checksum and kept in your cache folder:
+
+| System | Folder |
+| --- | --- |
+| Windows | `%LOCALAPPDATA%\konvertoj` |
+| macOS | `~/Library/Caches/konvertoj` |
+| Linux | `$XDG_CACHE_HOME/konvertoj`, or `~/.cache/konvertoj` |
+
+To use a particular FFmpeg instead, set `KONVERTOJ_FFMPEG_PATH` to its path. Behind a proxy, the download uses the standard `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` settings. This works on its own with Node.js 24.14 or newer; on Node.js 22.21 or newer, also set `NODE_USE_ENV_PROXY=1`.
+
+The add-on is a build of FFmpeg from the [ffmpeg-static](https://github.com/eugeneware/ffmpeg-static) project. FFmpeg is made by the FFmpeg developers, and this build is licensed under the [GNU General Public License](https://www.gnu.org/licenses/gpl-3.0.html). konvertoj doesn't include FFmpeg: it is downloaded separately, only if you agree.
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Everything succeeded (files that were already in the right format are skipped, not failed). |
+| `1` | Nothing succeeded, or the command was invalid. |
+| `2` | Some files were converted and some failed. |
+| `130` | Stopped with Ctrl+C. |
+
+## Privacy
+
+konvertoj works only on your computer. It never uploads your files, and it collects nothing. The only time it uses the internet is to download the video add-on, after you agree (and `npx` itself downloads konvertoj from npm the first time).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+
 ## Licence
 
-[MIT](LICENSE)
+konvertoj is released under the [MIT licence](LICENSE). The optional video add-on is FFmpeg, under its own GPL licence (see [Video and audio](#video-and-audio)).

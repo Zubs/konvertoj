@@ -62,6 +62,13 @@ function optionRows(options: OptionDefinition[]): string[] {
   );
 }
 
+export function commonOptionRows(): { name: string; explanation: string }[] {
+  return [...commonOptions, ...helpOptions].map((option) => ({
+    name: optionName(option).trim(),
+    explanation: optionExplanation(option),
+  }));
+}
+
 export function mainHelp(): string {
   const examples = mainExampleModes.map(
     (name) => `  ${findMode(name)?.examples[0]}`,
