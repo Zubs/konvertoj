@@ -1,14 +1,16 @@
 import { chmodSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { copyFile } from "node:fs/promises";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { isUserError } from "../src/errors.js";
 import { resolveInputs } from "../src/inputs.js";
-import type { Mode } from "../src/modes/registry.js";
+import { findMode, type Mode } from "../src/modes/registry.js";
 import { planOutputs, type OutputPlan } from "../src/outputs.js";
 import { Reporter, type BatchResult, type Output } from "../src/report.js";
 import { exitCodeFor, parallelLimit, runBatch } from "../src/runner.js";
 import { copyMode, copyStats, resetCopyStats } from "./support/copy-mode.mjs";
 import { cannotTestPermissions, makeFolder } from "./support/folders.js";
+import { writeSample } from "./support/samples.js";
 
 const runnableCopy = copyMode as Mode & Required<Pick<Mode, "run">>;
 const lockedPaths: string[] = [];
@@ -261,5 +263,104 @@ describe("exitCodeFor", () => {
     [result({ converted: 1, interrupted: true }), 3, 130],
   ])("gives the right code (%#)", (batch, total, code) => {
     expect(exitCodeFor(batch, total)).toBe(code);
+  });
+});
+
+describe("runBatch input checks", () => {
+  function recordingMode(name: string) {
+    const seen: string[] = [];
+    const registered = findMode(name);
+    if (!registered) {
+      throw new Error(`No mode ${name}`);
+    }
+    const mode: Mode & Required<Pick<Mode, "run">> = {
+      ...registered,
+      run: async ({ inputs, save }) => {
+        for (const input of inputs) {
+          seen.push(input.format ?? "none");
+        }
+        await save((temporaryPath) =>
+          copyFile(inputs[0]?.path ?? "", temporaryPath),
+        );
+      },
+    };
+    return { mode, seen };
+  }
+
+  async function runMode(
+    name: string,
+    cwd: string,
+    files: string[],
+    options: Record<string, string | boolean | undefined> = {},
+  ) {
+    const { mode, seen } = recordingMode(name);
+    const { inputs } = await resolveInputs(files, { recursive: false, cwd });
+    const plan = planOutputs(mode, inputs, { overwrite: false, cwd });
+    const output = quietOutput();
+    const result = await runBatch(
+      mode,
+      plan,
+      { options, overwrite: false, cwd, signal: new AbortController().signal },
+      new Reporter(
+        output,
+        { quiet: false, verbose: false, cwd },
+        plan.items.length,
+      ),
+    );
+    return {
+      result,
+      seen,
+      text: output.text(),
+      exitCode: exitCodeFor(result, plan.items.length),
+    };
+  }
+
+  it("hands each file's format to a mixed tojpg batch", async () => {
+    const cwd = makeFolder();
+    writeSample(cwd, "a.heic", "heic");
+    writeSample(cwd, "b.png", "png");
+    writeSample(cwd, "c.webp", "webp");
+    const { seen, result } = await runMode("tojpg", cwd, ["."]);
+    expect(seen.sort()).toEqual(["heic", "png", "webp"]);
+    expect(result.converted).toBe(3);
+  });
+
+  it("never runs a mode on a mismatched file", async () => {
+    const cwd = makeFolder();
+    writeSample(cwd, "holiday.heic", "png");
+    const { seen, text, exitCode } = await runMode("heictojpg", cwd, [
+      "holiday.heic",
+    ]);
+    expect(seen).toEqual([]);
+    expect(text).toContain(
+      "✗ holiday.heic: looks like a PNG. Try: -m pngtojpg",
+    );
+    expect(filesIn(cwd)).toEqual(["holiday.heic"]);
+    expect(exitCode).toBe(1);
+  });
+
+  it("sorts out a messy downloads folder", async () => {
+    const cwd = makeFolder();
+    writeSample(cwd, "chart.png", "png");
+    writeSample(cwd, "photo.jpg", "jpg");
+    writeSample(cwd, "clip.mp4", "mp4");
+    writeFileSync(path.join(cwd, "notes.txt"), "shopping list");
+    const { result, text, exitCode } = await runMode("tojpg", cwd, ["."]);
+    expect(result.converted).toBe(1);
+    expect(result.skipped).toBe(1);
+    expect(result.failed.map(({ reason }) => reason)).toEqual([
+      expect.stringContaining("is an MP4, which tojpg can't use"),
+      expect.stringContaining("isn't a file konvertoj can convert"),
+    ]);
+    expect(text).toContain("- photo.jpg skipped: already a JPG");
+    expect(exitCode).toBe(2);
+  });
+
+  it("counts a lone file already in the target format as skipped", async () => {
+    const cwd = makeFolder();
+    writeSample(cwd, "photo.jpg", "jpg");
+    const { result, exitCode } = await runMode("tojpg", cwd, ["photo.jpg"]);
+    expect(result.skipped).toBe(1);
+    expect(exitCode).toBe(0);
   });
 });

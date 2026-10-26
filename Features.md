@@ -4,6 +4,8 @@ This document breaks down every v1 feature from [Spec.md](Spec.md), in the order
 
 Tick a feature in the list below when everything under **How it works** is built and all its **Tests** pass.
 
+Decisions taken outside this plan are listed, with their reasons, in [Decisions.md](Decisions.md).
+
 Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), **O**ne (a single item), **M**any (several items), **B**oundaries (limits and edge values), **I**nterfaces (how it connects to the command line and other features), **E**xceptions (errors and bad input), then a **S**imple real-world scenario last.
 
 ## Progress
@@ -12,7 +14,7 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - [x] 2. Command-line basics
 - [x] 3. Inputs and output naming
 - [x] 4. Batch runner and reporting
-- [ ] 5. Format detection
+- [x] 5. Format detection
 - [ ] 6. Core image conversion
 - [ ] 7. Other image formats
 - [ ] 8. Metadata and strip

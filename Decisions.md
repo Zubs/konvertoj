@@ -1,0 +1,11 @@
+# konvertoj — Decisions
+
+Decisions taken while building the features in [Features.md](Features.md) that go beyond, or differ from, what the plan says. Each one says what was decided and why.
+
+## 5. Format detection
+
+- **Conversion-dependent tests finish in features 6 and 7.** Three of feature 5's tests need a real converter: "converts fine with `tojpg`", "a mixed folder of HEIC, PNG and WebP files all convert with `tojpg`", and "a truncated or corrupt image fails with 'looks damaged'". No converter exists until feature 6. Feature 5 tests these up to the point where the right converter would be chosen: the file passes its checks and its detected format is handed to the mode. Features 6 and 7 add the full conversion checks. A truncated image can't be caught from its header, so "looks damaged" for truncated images comes from the converters, using the shared message added in feature 5.
+- **Unusable files in a mixed folder count as failed, not skipped.** Features.md says a user running `tojpg` on a messy folder gets "a clear list of what was skipped". konvertoj lists text files, videos and other unusable files with their reasons, but counts them as *failed*, so the exit code is `2`. Feature 4's reporter and exit codes treat a file konvertoj couldn't process as a failure. "Skipped" is kept for files that need no work, such as a JPG given to `tojpg`. Scripts can then tell "nothing to do" apart from "couldn't do it".
+- **`--strip-metadata` counts as a conversion option.** A JPG given to `tojpg` is converted, not skipped, when `--strip-metadata` is given, because removing details is a reason to rewrite the file (feature 8).
+- **Real HEIC test photos are made with a script.** `test/fixtures/iphone.heic` and `test/fixtures/burst.heic` are made on macOS by `test/fixtures/make-fixtures.swift`, using Apple's own HEIC encoder. A real iPhone photo would hold a real location, so these small camera-style photos stand in for one. They have Apple camera details, a date, a GPS position and a rotation, like an iPhone photo.
+- **Format checks are skipped for the test-only `copy` mode.** The runner checks formats only for modes whose input formats konvertoj knows. Every real mode qualifies. The `copy` mode used to test the runner takes `txt` files, which aren't a real format, so its tests keep working without image headers.

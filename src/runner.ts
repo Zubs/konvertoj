@@ -1,6 +1,8 @@
 import { stat } from "node:fs/promises";
 import { availableParallelism } from "node:os";
+import { checkItem } from "./detect.js";
 import { isUserError } from "./errors.js";
+import { formatLabels } from "./modes/formats.js";
 import type { Mode } from "./modes/registry.js";
 import { prepareOutputFolders, writeOutputFile } from "./output-files.js";
 import type { OutputPlan, PlannedItem } from "./outputs.js";
@@ -53,6 +55,10 @@ export async function runBatch(
     interrupted: false,
   };
 
+  const checksFormats = mode.inputs.every((format) =>
+    Object.hasOwn(formatLabels, format),
+  );
+
   const runItem = async (item: PlannedItem) => {
     const unreadable = item.inputs.find((input) => input.unreadable);
     if (unreadable) {
@@ -65,9 +71,24 @@ export async function runBatch(
     const startedAt = Date.now();
     reporter.started(item);
     try {
+      let inputs = item.inputs;
+      if (checksFormats) {
+        const checked = await checkItem(
+          mode,
+          item,
+          settings.options,
+          settings.cwd,
+        );
+        if ("skipped" in checked) {
+          result.skipped++;
+          reporter.skipped(item, checked.skipped);
+          return;
+        }
+        inputs = checked.inputs;
+      }
       let savedPath: string | undefined;
       const outcome = await mode.run({
-        inputs: item.inputs,
+        inputs,
         output,
         options: settings.options,
         save: async (write) => {

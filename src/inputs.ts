@@ -9,6 +9,7 @@ export interface InputFile {
   path: string;
   base?: string;
   unreadable?: string;
+  format?: string;
 }
 
 export interface ResolvedInputs {
