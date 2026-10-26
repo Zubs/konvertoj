@@ -114,7 +114,8 @@ A value option whose valid values are a fixed list of words, a number range, a c
   - `resize`'s `--scale` allows positive percentages such as `50%`,
   - `compress`'s `--target-size` allows a positive size in `kb` or `mb`, in any letter case, such as `200kb` or `1.5MB`,
   - `crop`'s `--aspect` allows a ratio of two positive numbers, such as `16:9` or `1:1`,
-  - `colorpick`'s `--at` allows two whole numbers of 0 or more separated by a comma, such as `10,20`.
+  - `colorpick`'s `--at` allows two whole numbers of 0 or more separated by a comma, such as `10,20`,
+  - `pdftopng`'s `--page` allows `all`, a page, a range or a comma-separated list of pages and ranges, such as `3`, `1-5` or `1,3,7`.
 
 #### Scenario: Defaults are valid
 - **WHEN** every option default in the registry is checked against its option's rule
@@ -138,11 +139,15 @@ Every Tools mode whose output keeps the input's format SHALL declare its output 
 - `flip`: `flipped`
 - `strip`: `stripped`
 
-Every `<image>topdf` mode and `topdf` SHALL be marked as combining all inputs into one output. No other mode SHALL be.
+Every `<image>topdf` mode and `topdf` SHALL be marked as combining all inputs into one output. No other mode SHALL be. Every `pdfto<image>` mode SHALL be marked as writing several files per input. No other mode SHALL be.
 
 #### Scenario: Suffixes declared
 - **WHEN** the registry is inspected
 - **THEN** every mode with output "same as input" has a suffix, and `compress` has `compressed`
+
+#### Scenario: Several outputs per input
+- **WHEN** the registry is inspected
+- **THEN** exactly the 8 `pdfto<image>` modes write several files per input
 
 #### Scenario: Combining modes
 - **WHEN** the registry is inspected

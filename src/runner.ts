@@ -74,6 +74,7 @@ export async function runBatch(
     reporter.started(item);
     try {
       let inputs = item.inputs;
+      const notes: string[] = [];
       if (checksFormats) {
         const checked = await checkItem(
           mode,
@@ -87,8 +88,8 @@ export async function runBatch(
           return;
         }
         inputs = checked.inputs;
+        notes.push(...checked.notes);
       }
-      const notes: string[] = [];
       const realFormat = inputs[0]?.format;
       const extension = path.extname(output);
       if (
@@ -102,16 +103,20 @@ export async function runBatch(
           `saved as .${realFormat}, because ${path.basename(item.inputs[0]?.path ?? "")} is really ${withArticle(realFormat)} file`,
         );
       }
-      let savedPath: string | undefined;
+      const savedPaths: string[] = [];
       let shown: Section | undefined;
       const outcome = await mode.run({
         inputs,
         output,
         options: settings.options,
-        save: async (write) => {
-          savedPath = await writeOutputFile(output, write, {
-            overwrite: settings.overwrite,
-          });
+        save: async (write, { suffix = "" } = {}) => {
+          const { dir, name, ext } = path.parse(output);
+          const savedPath = await writeOutputFile(
+            path.join(dir, `${name}${suffix}${ext}`),
+            write,
+            { overwrite: settings.overwrite },
+          );
+          savedPaths.push(savedPath);
           return savedPath;
         },
         progress: (fraction) => reporter.progress(fraction, startedAt),
@@ -128,17 +133,23 @@ export async function runBatch(
         reporter.shown(index, shown, notes);
         return;
       }
-      if (outcome?.skipped || !savedPath) {
+      if (outcome?.skipped || savedPaths.length === 0) {
         result.skipped++;
         reporter.skipped(item, outcome?.skipped ?? "nothing was written");
         return;
       }
       const before = await totalSize(item.inputs.map((input) => input.path));
-      const after = await totalSize([savedPath]);
+      const after = await totalSize(savedPaths);
       result.converted++;
       result.sizeBefore += before;
       result.sizeAfter += after;
-      reporter.succeeded({ ...item, output: savedPath }, before, after, notes);
+      reporter.succeeded(
+        { ...item, output: savedPaths[0] },
+        before,
+        after,
+        notes,
+        savedPaths.length - 1,
+      );
     } catch (error) {
       if (settings.signal.aborted) {
         return;

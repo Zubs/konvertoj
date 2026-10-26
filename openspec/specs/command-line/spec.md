@@ -137,8 +137,8 @@ A value outside its option's declared word list, range, colour rule or size list
 - **THEN** each fails with exit code `1`, saying `--sizes` must be whole numbers from 1 to 256 separated by commas
 
 #### Scenario: Unchecked values pass through
-- **WHEN** a user runs `-m pdftopng report.pdf --page banana`
-- **THEN** no option check fails, because `--page` has no declared rule (page lists are checked by feature 13)
+- **WHEN** a user runs `-m mp4tomp3 talk.mp4 --start banana`
+- **THEN** no option check fails, because `--start` has no declared rule (times are checked by feature 16)
 
 #### Scenario: Option checked before inputs
 - **WHEN** a user runs `-m heictojpg missing.heic --quality 101` and `missing.heic` doesn't exist

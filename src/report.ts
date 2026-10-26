@@ -137,12 +137,17 @@ export class Reporter {
     before: number,
     after: number,
     notes: string[] = [],
+    otherOutputs = 0,
   ): void {
     this.done++;
     this.jobProgress = undefined;
     if (!this.settings.quiet) {
+      const others =
+        otherOutputs > 0
+          ? ` and ${otherOutputs} other${otherOutputs === 1 ? "" : "s"}`
+          : "";
       const output = item.output
-        ? path.relative(this.settings.cwd, item.output)
+        ? `${path.relative(this.settings.cwd, item.output)}${others}`
         : "";
       const change = before > 0 ? ` (${formatChange(before, after)})` : "";
       const sizes = `${formatSize(before)} → ${formatSize(after)}${change}`;

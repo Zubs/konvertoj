@@ -118,6 +118,7 @@ describe("checkItem", () => {
     );
     expect(await check("tojpg", [file])).toEqual({
       inputs: [{ path: file, format: "png" }],
+      notes: [],
     });
   });
 
@@ -137,6 +138,7 @@ describe("checkItem", () => {
     for (const file of files) {
       expect(await check("jpgtopng", [file])).toEqual({
         inputs: [{ path: file, format: "jpg" }],
+        notes: [],
       });
     }
   });
@@ -239,6 +241,7 @@ describe("checkItem", () => {
     copyFileSync(iphonePhoto, file);
     expect(await check("heictojpg", [file])).toEqual({
       inputs: [{ path: file, format: "heic" }],
+      notes: [],
     });
   });
 });

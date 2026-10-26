@@ -137,6 +137,11 @@ export const page = value(
   "Pages to export, e.g. 3, 1-5, 1,3,7 or all",
   {
     defaultValue: "all",
+    rule: {
+      pattern: /^(all|[1-9]\d*(-[1-9]\d*)?(,[1-9]\d*(-[1-9]\d*)?)*)$/i,
+      description:
+        "all, a page such as 3, a range such as 1-5 or a list such as 1,3,7",
+    },
   },
 );
 export const pdfDpi = value(

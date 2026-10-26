@@ -76,6 +76,7 @@ export interface Mode {
   examples: string[];
   outputSuffix?: string;
   combinesInputs?: true;
+  multipleOutputs?: true;
   checkOptions?: (options: RunContext["options"]) => string | undefined;
   run?: (context: RunContext) => Promise<{ skipped: string } | void>;
 }
@@ -84,7 +85,10 @@ export interface RunContext {
   inputs: InputFile[];
   output: string;
   options: Record<string, string | boolean | undefined>;
-  save(write: (temporaryPath: string) => Promise<void>): Promise<string>;
+  save(
+    write: (temporaryPath: string) => Promise<void>,
+    options?: { suffix?: string },
+  ): Promise<string>;
   progress(fraction: number): void;
   detail(message: string): void;
   note(message: string): void;
@@ -191,6 +195,54 @@ function colourPickProblem(options: RunContext["options"]): string | undefined {
     : undefined;
 }
 
+const pageWidthsInMillimetres: Record<string, number> = {
+  a4: 210,
+  letter: 215.9,
+};
+
+function pdfMarginProblem(options: RunContext["options"]): string | undefined {
+  const size =
+    typeof options["page-size"] === "string"
+      ? options["page-size"].toLowerCase()
+      : "a4";
+  const across = pageWidthsInMillimetres[size];
+  const wanted =
+    typeof options.margin === "string" ? Number(options.margin) : undefined;
+  if (across === undefined || wanted === undefined || wanted * 2 < across) {
+    return undefined;
+  }
+  const label = size === "a4" ? "A4" : "letter";
+  return `--margin ${wanted} is half the page or more (${label} is ${across} mm across). Choose a smaller margin.`;
+}
+
+function pageListProblem(options: RunContext["options"]): string | undefined {
+  if (typeof options.page !== "string") {
+    return undefined;
+  }
+  const backwards = options.page.split(",").find((part) => {
+    const [first, last] = part.split("-").map(Number);
+    return last !== undefined && first !== undefined && last < first;
+  });
+  return backwards
+    ? `--page ${backwards} goes backwards. Write the lower page first, e.g. ${backwards.split("-").reverse().join("-")}.`
+    : undefined;
+}
+
+function pdfRun(
+  name: "createPdf" | "exportPages",
+  target?: string,
+): Mode["run"] {
+  return async (context) => {
+    if (name === "createPdf") {
+      return (await import("../convert/pdf-create.js")).createPdf(context);
+    }
+    return (await import("../convert/pdf-export.js")).exportPages(
+      context,
+      target ?? "png",
+    );
+  };
+}
+
 function targetEncodingOptions(target: string): OptionDefinition[] {
   const options: OptionDefinition[] = [];
   if (target in defaultQualities || target === "tiff") {
@@ -268,6 +320,8 @@ function pdfModes(): Mode[] {
     output: "pdf",
     combinesInputs: true as const,
     options: pdfOptions,
+    checkOptions: pdfMarginProblem,
+    run: pdfRun("createPdf"),
     description: `Turn ${label(from)} images into one PDF`,
     examples: [
       `konvertoj -m ${from}topdf ./scans -o scans`,
@@ -281,12 +335,17 @@ function pdfModes(): Mode[] {
     output: "pdf",
     combinesInputs: true as const,
     options: pdfOptions,
+    checkOptions: pdfMarginProblem,
+    run: pdfRun("createPdf"),
     description: `Turn ${anyImageLabel} files into one PDF`,
     examples: ["konvertoj -m topdf ./receipts -o receipts"],
   };
   const toImages = imageOutputs.map((to) => ({
     name: `pdfto${to}`,
     group: "PDF" as const,
+    multipleOutputs: true as const,
+    checkOptions: pageListProblem,
+    run: pdfRun("exportPages", to),
     inputs: ["pdf"],
     output: to,
     options: [page, pdfDpi, background, ...targetEncodingOptions(to)],

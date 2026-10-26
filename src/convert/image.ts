@@ -256,8 +256,40 @@ function finalPlan(
   return plan;
 }
 
+function firstInput(context: RunContext) {
+  const [input] = context.inputs;
+  if (!input) {
+    throw new UserError("has nothing to convert.");
+  }
+  return input;
+}
+
+function isAnimated(format: string, target: string): boolean {
+  return (
+    animatableFormats.includes(target) && animatableFormats.includes(format)
+  );
+}
+
 export async function renderImage(
   context: RunContext,
+  target: string,
+  settings: ConvertSettings = {},
+): Promise<Buffer> {
+  const input = firstInput(context);
+  const opened = await openImage(
+    input,
+    context.options,
+    isAnimated(input.format ?? "", target),
+    settings.resize === false
+      ? { fit: "inside" }
+      : sizeRequest(context.options, settings.enlarge === true),
+  );
+  return renderOpened(context, opened, target, settings);
+}
+
+export async function renderOpened(
+  context: RunContext,
+  opened: OpenedImage,
   target: string,
   {
     keepFormat = false,
@@ -267,20 +299,10 @@ export async function renderImage(
     edit,
   }: ConvertSettings = {},
 ): Promise<Buffer> {
-  const [input] = context.inputs;
-  if (!input) {
-    throw new UserError("has nothing to convert.");
-  }
+  const input = firstInput(context);
   const format = input.format ?? "";
   const { options } = context;
-  const animated =
-    animatableFormats.includes(target) && animatableFormats.includes(format);
-  const opened = await openImage(
-    input,
-    options,
-    animated,
-    resize === false ? { fit: "inside" } : sizeRequest(options, enlarge),
-  );
+  const animated = isAnimated(format, target);
   const plan =
     resize === false ? undefined : finalPlan(context, opened, enlarge);
   const iconSizes = iconSizesFor(options, keepFormat);

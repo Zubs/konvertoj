@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 import ImageIO
+import PDFKit
 import UniformTypeIdentifiers
 
 let folder = URL(fileURLWithPath: CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : ".")
@@ -63,3 +64,21 @@ write(
         (quadrants(width: 80, height: 40), [:]),
         (quadrants(width: 32, height: 32), [:]),
     ])
+
+func writeLockedPdf(_ name: String) {
+    let data = NSMutableData()
+    var page = CGRect(x: 0, y: 0, width: 200, height: 100)
+    let consumer = CGDataConsumer(data: data as CFMutableData)!
+    let context = CGContext(consumer: consumer, mediaBox: &page, nil)!
+    context.beginPDFPage(nil)
+    context.setFillColor(red: 1, green: 0, blue: 0, alpha: 1)
+    context.fill(CGRect(x: 20, y: 20, width: 60, height: 40))
+    context.endPDFPage()
+    context.closePDF()
+    let document = PDFDocument(data: data as Data)!
+    document.write(
+        to: folder.appendingPathComponent(name),
+        withOptions: [.userPasswordOption: "secret", .ownerPasswordOption: "owner"])
+}
+
+writeLockedPdf("locked.pdf")

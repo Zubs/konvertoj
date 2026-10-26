@@ -18,7 +18,8 @@ import {
 } from "./modes/registry.js";
 import type { PlannedItem } from "./outputs.js";
 
-export type CheckedItem = { inputs: InputFile[] } | { skipped: string };
+export type CheckedItem =
+  { inputs: InputFile[]; notes: string[] } | { skipped: string };
 
 const detectedFormats: Record<string, string> = {
   jpg: "jpg",
@@ -165,8 +166,21 @@ export async function checkItem(
     }
   }
 
-  const formats = checked.map((input) => input.format);
-  for (const input of checked) {
+  const isEarlierResult = (input: InputFile & { format: string }) =>
+    input.base !== undefined &&
+    input.format === mode.output &&
+    !mode.inputs.includes(input.format);
+  const earlier = checked.filter(isEarlierResult);
+  if (earlier.length === checked.length && earlier.length > 0) {
+    return { skipped: `already ${withArticle(mode.output)}` };
+  }
+  const notes = earlier.map(
+    (input) =>
+      `left out ${path.relative(cwd, input.path)}, which is already ${withArticle(mode.output)}`,
+  );
+  const usable = checked.filter((input) => !isEarlierResult(input));
+  const formats = usable.map((input) => input.format);
+  for (const input of usable) {
     if (!mode.inputs.includes(input.format)) {
       throw naming(input, rejection(mode, input.format, formats));
     }
@@ -176,14 +190,14 @@ export async function checkItem(
     ...mode.options.map((option) => option.name),
     "strip-metadata",
   ].some((name) => options[name] !== undefined);
-  const [only] = checked;
+  const [only] = usable;
   if (
     mode.name === `to${mode.output}` &&
-    checked.length === 1 &&
+    usable.length === 1 &&
     only?.format === mode.output &&
     !conversionOptionGiven
   ) {
     return { skipped: `already ${withArticle(mode.output)}` };
   }
-  return { inputs: checked };
+  return { inputs: usable, notes };
 }

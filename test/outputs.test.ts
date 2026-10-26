@@ -151,7 +151,7 @@ describe("planOutputs", () => {
     }).catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(UserError);
     expect((error as UserError).message).toContain(
-      "-o must be a folder when there are several inputs",
+      "-o must be a folder when there are several inputs or pages",
     );
   });
 

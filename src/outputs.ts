@@ -88,7 +88,9 @@ export function planOutputs(
     for (let number = 1; ; number++) {
       const isFree =
         !taken.has(takenKey(candidate)) &&
-        (options.overwrite || !fs.existsSync(candidate));
+        (options.overwrite ||
+          mode.multipleOutputs === true ||
+          !fs.existsSync(candidate));
       if (isFree) {
         taken.add(takenKey(candidate));
         return candidate;
@@ -130,12 +132,13 @@ export function planOutputs(
   const targetIsFolder =
     target !== undefined &&
     (inputs.length > 1 ||
+      mode.multipleOutputs === true ||
       inputs.some((input) => input.base) ||
       isFolder(target) ||
       /[/\\]$/.test(options.output ?? ""));
   if (targetIsFolder && fs.existsSync(target) && !isFolder(target)) {
     throw new UserError(
-      `-o ${options.output} is a file, but -o must be a folder when there are several inputs. Choose a folder name, e.g. -o converted.`,
+      `-o ${options.output} is a file, but -o must be a folder when there are several inputs or pages. Choose a folder name, e.g. -o converted.`,
     );
   }
 

@@ -22,7 +22,7 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - [x] 10. Compress
 - [x] 11. Crop, rotate and flip
 - [x] 12. Info and colour picker
-- [ ] 13. PDF
+- [x] 13. PDF
 - [ ] 14. FFmpeg add-on
 - [ ] 15. Video to MP4
 - [ ] 16. Audio from video

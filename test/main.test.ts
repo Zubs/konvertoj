@@ -234,7 +234,7 @@ describe("main", () => {
     ["heictojpg", "photo.heic", "--quality", "100"],
     ["movtomp4", "clip.mov", "--quality", "HIGH"],
     ["rotate", "photo.jpg", "--angle", "-90"],
-    ["pdftopng", "report.pdf", "--page", "banana"],
+    ["mp4tomp3", "clip.mp4", "--start", "banana"],
     ["heictojpg", "photo.heic", "--background", "red"],
     ["heictojpg", "photo.heic", "--background", "#f80"],
     ["heictojpg", "photo.heic", "--background", "#FF8800"],
