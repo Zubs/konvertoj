@@ -78,6 +78,40 @@ describe("formatChange", () => {
 });
 
 describe("Reporter", () => {
+  it("prints sections in input order with no summary, even when quiet", () => {
+    const { output, written } = fakeOutput(false);
+    const reporter = new Reporter(
+      output,
+      { quiet: true, verbose: true, cwd, printing: true },
+      2,
+    );
+    reporter.started(item("b.png"));
+    reporter.shown(1, {
+      text: "b.png\n  Format: PNG",
+      data: { file: "b.png" },
+    });
+    reporter.shown(0, {
+      text: "a.png\n  Format: PNG",
+      data: { file: "a.png" },
+    });
+    reporter.finish(result({ converted: 2 }));
+    expect(written.out).toBe("a.png\n  Format: PNG\n\nb.png\n  Format: PNG\n");
+    expect(written.err).toContain("Working on b.png");
+  });
+
+  it("prints one JSON array, and the sections done when stopped", () => {
+    const { output, written } = fakeOutput(false);
+    const reporter = new Reporter(
+      output,
+      { quiet: false, verbose: false, cwd, printing: true, json: true },
+      3,
+    );
+    reporter.shown(0, { text: "a", data: { file: "a.png" } });
+    reporter.finish(result({ converted: 1, interrupted: true }));
+    expect(JSON.parse(written.out)).toEqual([{ file: "a.png" }]);
+    expect(written.err).toBe("Stopped by Ctrl+C after 1 of 3.\n");
+  });
+
   it("prints notes after a success line, but not when quiet", () => {
     const note = "only the first frame was kept, because JPG can't be animated";
     const loud = fakeOutput(false);

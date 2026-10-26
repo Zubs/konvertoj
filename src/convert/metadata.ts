@@ -209,3 +209,50 @@ function containsLosslessChunk(
 export function isLosslessWebp(webp: Buffer): boolean {
   return containsLosslessChunk(webp, 12, webp.length);
 }
+
+export interface CameraDetails {
+  make?: string;
+  model?: string;
+  dateTaken?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export async function cameraDetails(
+  input: InputFile,
+  opened: OpenedImage,
+): Promise<CameraDetails | undefined> {
+  const exif = opened.metadata?.exif;
+  const source =
+    input.format === "heic"
+      ? input.path
+      : exif && exif.subarray(0, 6).equals(exifPrefix)
+        ? exif.subarray(6)
+        : exif;
+  if (!source) {
+    return undefined;
+  }
+  const { result, damaged } = await parseWithExifr(source, {
+    tiff: true,
+    exif: true,
+    gps: true,
+    reviveValues: false,
+  });
+  if (!result || damaged) {
+    return undefined;
+  }
+  const text = (value: unknown) =>
+    typeof value === "string" ? value.trim() : undefined;
+  const number = (value: unknown) =>
+    typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  const found: CameraDetails = {
+    make: text(result.Make),
+    model: text(result.Model),
+    dateTaken: text(result.DateTimeOriginal ?? result.CreateDate),
+    latitude: number(result.latitude),
+    longitude: number(result.longitude),
+  };
+  return Object.values(found).some((value) => value !== undefined)
+    ? found
+    : undefined;
+}

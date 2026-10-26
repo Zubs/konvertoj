@@ -7,13 +7,14 @@ import { extensionsFor, formatLabels } from "./modes/formats.js";
 import type { Mode } from "./modes/registry.js";
 import { prepareOutputFolders, writeOutputFile } from "./output-files.js";
 import type { OutputPlan, PlannedItem } from "./outputs.js";
-import type { BatchResult, Reporter } from "./report.js";
+import type { BatchResult, Reporter, Section } from "./report.js";
 
 export interface BatchSettings {
   options: Record<string, string | boolean | undefined>;
   overwrite: boolean;
   cwd: string;
   signal: AbortSignal;
+  colours?: boolean;
 }
 
 const unexpectedProblem =
@@ -60,7 +61,7 @@ export async function runBatch(
     Object.hasOwn(formatLabels, format),
   );
 
-  const runItem = async (item: PlannedItem) => {
+  const runItem = async (item: PlannedItem, index: number) => {
     const unreadable = item.inputs.find((input) => input.unreadable);
     if (unreadable) {
       const reason = `can't be read (${unreadable.unreadable})`;
@@ -102,6 +103,7 @@ export async function runBatch(
         );
       }
       let savedPath: string | undefined;
+      let shown: Section | undefined;
       const outcome = await mode.run({
         inputs,
         output,
@@ -115,8 +117,17 @@ export async function runBatch(
         progress: (fraction) => reporter.progress(fraction, startedAt),
         detail: (message) => reporter.detail(message),
         note: (message) => notes.push(message),
+        show: (section) => {
+          shown = section;
+        },
+        colours: settings.colours === true,
         signal: settings.signal,
       });
+      if (shown && !outcome?.skipped) {
+        result.converted++;
+        reporter.shown(index, shown, notes);
+        return;
+      }
       if (outcome?.skipped || !savedPath) {
         result.skipped++;
         reporter.skipped(item, outcome?.skipped ?? "nothing was written");
@@ -141,9 +152,10 @@ export async function runBatch(
   let next = 0;
   const worker = async () => {
     while (next < plan.items.length && !settings.signal.aborted) {
-      const item = plan.items[next++];
+      const index = next++;
+      const item = plan.items[index];
       if (item) {
-        await runItem(item);
+        await runItem(item, index);
       }
     }
   };

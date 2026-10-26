@@ -158,6 +158,11 @@ export async function main(
     return 0;
   }
 
+  if (mode.output === "none" && values.output !== undefined) {
+    return fail(
+      `${mode.name} doesn't create files, so -o can't be used. Remove -o to see the details.`,
+    );
+  }
   const problem = optionProblem(mode, tokens) ?? mode.checkOptions?.(values);
   if (problem) {
     return fail(problem);
@@ -203,14 +208,26 @@ export async function main(
   const { exitCodeFor, runBatch } = await import("./runner.js");
   const reporter = new Reporter(
     output,
-    { quiet: values.quiet === true, verbose: values.verbose === true, cwd },
+    {
+      quiet: values.quiet === true,
+      verbose: values.verbose === true,
+      cwd,
+      printing: mode.output === "none",
+      json: values.json === true,
+    },
     plan.items.length,
   );
   try {
     const result = await runBatch(
       { ...mode, run },
       plan,
-      { options: values, overwrite: values.overwrite === true, cwd, signal },
+      {
+        options: values,
+        overwrite: values.overwrite === true,
+        cwd,
+        signal,
+        colours: output.colours.out,
+      },
       reporter,
     );
     return exitCodeFor(result, plan.items.length);

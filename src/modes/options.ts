@@ -323,13 +323,18 @@ export const at = value(
   "at",
   "x,y",
   "Pixel to report, counted from the top left starting at 0",
+  {
+    rule: {
+      pattern: /^\d+,\d+$/,
+      description: "two whole numbers such as 10,20",
+    },
+  },
 );
 export const palette = value(
   "palette",
   "count",
-  "Number of main colours to report",
+  "Number of main colours to report, e.g. 5",
   {
-    defaultValue: "5",
     rule: { min: 1, max: 16, wholeNumber: true },
   },
 );

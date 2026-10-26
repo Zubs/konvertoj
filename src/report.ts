@@ -13,6 +13,13 @@ export interface ReportSettings {
   quiet: boolean;
   verbose: boolean;
   cwd: string;
+  printing?: boolean;
+  json?: boolean;
+}
+
+export interface Section {
+  text: string;
+  data: Record<string, unknown>;
 }
 
 export interface BatchResult {
@@ -85,6 +92,7 @@ export class Reporter {
   private barShown = false;
   private lastDrawn = 0;
   private readonly startedAt: number;
+  private readonly sections: { index: number; section: Section }[] = [];
 
   constructor(
     private readonly output: Output,
@@ -95,17 +103,33 @@ export class Reporter {
     this.startedAt = now();
   }
 
+  private get chatter(): "out" | "err" {
+    return this.settings.printing ? "err" : "out";
+  }
+
   started(item: PlannedItem): void {
     if (this.settings.verbose) {
-      this.line("out", `Working on ${this.describe(item)}`);
+      this.line(this.chatter, `Working on ${this.describe(item)}`);
     }
     this.showBar();
   }
 
   detail(message: string): void {
     if (this.settings.verbose) {
-      this.line("out", `  ${message}`);
+      this.line(this.chatter, `  ${message}`);
     }
+  }
+
+  shown(index: number, section: Section, notes: string[] = []): void {
+    this.done++;
+    this.jobProgress = undefined;
+    this.sections.push({ index, section });
+    if (!this.settings.quiet) {
+      for (const note of notes) {
+        this.line("err", `  Note: ${note}`);
+      }
+    }
+    this.showBar();
   }
 
   succeeded(
@@ -138,8 +162,12 @@ export class Reporter {
     this.jobProgress = undefined;
     if (!this.settings.quiet) {
       this.line(
-        "out",
-        this.paint("out", "dim", `- ${this.describe(item)} skipped: ${reason}`),
+        this.chatter,
+        this.paint(
+          this.chatter,
+          "dim",
+          `- ${this.describe(item)} skipped: ${reason}`,
+        ),
       );
     }
     this.showBar();
@@ -165,6 +193,10 @@ export class Reporter {
 
   finish(result: BatchResult): void {
     this.hideBar();
+    if (this.settings.printing) {
+      this.printSections(result);
+      return;
+    }
     if (this.settings.quiet) {
       return;
     }
@@ -190,6 +222,30 @@ export class Reporter {
       );
     }
     this.output.out(`${lines.join("\n")}\n`);
+  }
+
+  private printSections(result: BatchResult): void {
+    if (result.interrupted) {
+      this.output.err(
+        `Stopped by Ctrl+C after ${this.done} of ${this.total}.\n`,
+      );
+    }
+    const ordered = this.sections
+      .sort((a, b) => a.index - b.index)
+      .map(({ section }) => section);
+    if (this.settings.json) {
+      this.output.out(
+        `${JSON.stringify(
+          ordered.map((section) => section.data),
+          null,
+          2,
+        )}\n`,
+      );
+    } else if (ordered.length > 0) {
+      this.output.out(
+        `${ordered.map((section) => section.text).join("\n\n")}\n`,
+      );
+    }
   }
 
   private describe(item: PlannedItem): string {

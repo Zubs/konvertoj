@@ -8,6 +8,7 @@ import {
   videoInputs,
 } from "./formats.js";
 import type { InputFile } from "../inputs.js";
+import type { Section } from "../report.js";
 import {
   angle,
   aspect,
@@ -87,6 +88,8 @@ export interface RunContext {
   progress(fraction: number): void;
   detail(message: string): void;
   note(message: string): void;
+  show(section: Section): void;
+  colours: boolean;
   signal: AbortSignal;
 }
 
@@ -179,6 +182,12 @@ function rotateProblem(options: RunContext["options"]): string | undefined {
 function flipProblem(options: RunContext["options"]): string | undefined {
   return options.direction === undefined
     ? "Give --direction horizontal or --direction vertical."
+    : undefined;
+}
+
+function colourPickProblem(options: RunContext["options"]): string | undefined {
+  return options.at === undefined && options.palette === undefined
+    ? "Give --at, e.g. --at 10,10, or --palette, e.g. --palette 5."
     : undefined;
 }
 
@@ -459,6 +468,8 @@ function toolModes(): Mode[] {
       inputs: imageInputs,
       output: "none",
       options: [json],
+      run: async (context) =>
+        (await import("../convert/info.js")).showInfo(context),
       description: "Show an image's format, size, dimensions and details",
       examples: [
         "konvertoj -m info photo.jpg",
@@ -470,6 +481,9 @@ function toolModes(): Mode[] {
       inputs: imageInputs,
       output: "none",
       options: [at, palette, json],
+      checkOptions: colourPickProblem,
+      run: async (context) =>
+        (await import("../convert/colours.js")).pickColours(context),
       description: "Report the colour at a point, or an image's main colours",
       examples: [
         "konvertoj -m colorpick logo.png --at 10,10",
@@ -493,8 +507,16 @@ export function findMode(name: string): Mode | undefined {
   return modesByName.get(name);
 }
 
+const fileOptions = ["output", "overwrite", "strip-metadata"];
+
+export function commonOptionsFor(mode: Mode): OptionDefinition[] {
+  return mode.output === "none"
+    ? commonOptions.filter((option) => !fileOptions.includes(option.name))
+    : commonOptions;
+}
+
 export function acceptedOptions(mode: Mode): OptionDefinition[] {
-  return [...mode.options, ...commonOptions];
+  return [...mode.options, ...commonOptionsFor(mode)];
 }
 
 export function describeFormats(formats: string[]): string {

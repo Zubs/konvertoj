@@ -31,7 +31,7 @@ Converting to BMP, GIF or ICO SHALL work as usual. When the input had details, `
 - **THEN** it converts, and the output mentions that the details were dropped because BMP can't hold them
 
 ### Requirement: --strip-metadata
-`--strip-metadata` SHALL work on every image mode, and SHALL remove EXIF, XMP and IPTC details, keeping only the colour profile. The image SHALL be turned upright before its orientation tag is removed.
+`--strip-metadata` SHALL work on every image mode that creates files (`info` and `colorpick` only read images, so they don't take it), and SHALL remove EXIF, XMP and IPTC details, keeping only the colour profile. The image SHALL be turned upright before its orientation tag is removed.
 
 #### Scenario: Details removed
 - **WHEN** a JPG with camera, date and GPS details is converted with `jpgtopng --strip-metadata`
@@ -43,7 +43,7 @@ Converting to BMP, GIF or ICO SHALL work as usual. When the input had details, `
 
 #### Scenario: Every image mode accepts it
 - **WHEN** the registry is inspected
-- **THEN** every Image, PDF and Tools mode accepts `--strip-metadata`
+- **THEN** every Image, PDF and Tools mode that creates files accepts `--strip-metadata`
 
 ### Requirement: strip tool
 `strip` SHALL keep each input's format and remove its details, saving `<name>-stripped.<ext>`. An upright JPG SHALL keep its picture data exactly. A sideways photo SHALL come out upright, with no orientation tag.

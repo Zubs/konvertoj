@@ -65,3 +65,15 @@ Decisions taken while building the features in [Features.md](Features.md) that g
 - **Fixed in passing:** the test that compares `-o` and `--output` now ignores the run time in the summary, because the conversion really runs and its duration can differ by a tenth of a second.
 - **Edited icons are one square icon.** `crop`, `rotate` and `flip` on an ICO write a single icon at the edited image's larger side, as `resize` and `enlarge` do. ICO entries are square, so a non-square result is padded with transparency to a square, the same way conversions to ICO are.
 - **Animated vertical flips go frame by frame.** Flipping the whole animation at once would reverse the frame order, so each frame is flipped on its own, like rotation.
+
+## 12. Info and colour picker
+
+- **Details are printed after the batch, in input order.** `info` and `colorpick` work on several files at once, so each file's section is held until all are done and then printed in the order given. Output stays readable and predictable.
+- **`--json` is always an array.** Even for one file, standard output is a JSON array of objects, so scripts handle one file and many the same way. Nothing else is printed on standard output in this mode. Verbose lines, skips and notes go to standard error.
+- **`--quiet` keeps the sections.** The details are the command's result, not progress, so `--quiet` doesn't hide them.
+- **`--palette` needs a number.** Features.md gives it a default of 5, but a value option given on its own would take the next word, such as a file name, as its count. `--palette 5` is therefore needed, and the help says "e.g. 5".
+- **Colours are given as HEX, RGB and HSL only,** with the alpha added when a colour isn't fully opaque. konvertoj doesn't name colours.
+- **`-o` is rejected for modes that only print.** `info` and `colorpick` don't create files, so `-o` fails with an explanation instead of being silently ignored.
+- **Main colours use a median-cut variant that splits at the mean.** Features.md asks for median-cut quantisation. Classic median cut, splitting the widest box at its median, gave wrong colours on JPGs: compression leaves pinkish edge pixels that won the splits, and two light colours were merged. konvertoj still cuts colour boxes in two along one channel, but at the mean, and always makes the split that reduces the total colour error most. On a five-colour brand image this gives all five colours, for PNG and JPG alike.
+- **Modes that only print don't take file options.** `info` and `colorpick` don't accept or list `-o`, `--overwrite` or `--strip-metadata`, so `info --strip-metadata` can't make anyone think a file was cleaned.
+- **Ctrl+C says what it's doing.** The first Ctrl+C prints "Stopping after the files already in progress. Press Ctrl+C again to stop at once." A second Ctrl+C removes temporary files and ends konvertoj immediately, even while sharp is busy encoding, with exit code 130.

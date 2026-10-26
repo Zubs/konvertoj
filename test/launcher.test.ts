@@ -121,6 +121,48 @@ describe("launched konvertoj", () => {
   );
 });
 
+describe("pressing Ctrl+C twice", () => {
+  it.skipIf(process.platform === "win32")(
+    "stops at once, leaving no half-written files",
+    async () => {
+      const files = Array.from(
+        { length: 12 },
+        (_, index) => `slow${index + 1}.txt`,
+      );
+      const cwd = folderWith(files);
+      const child = spawn(
+        process.execPath,
+        [launcher, "-m", "copy", ".", "-o", "out"],
+        { cwd },
+      );
+      let stderr = "";
+      child.stderr.setEncoding("utf8");
+      child.stderr.on("data", (chunk: string) => {
+        stderr += chunk;
+        if (stderr.includes("Press Ctrl+C again")) {
+          child.kill("SIGINT");
+        }
+      });
+      setTimeout(() => child.kill("SIGINT"), 150);
+      const startedAt = Date.now();
+      const [code, signal] = await new Promise<[number | null, string | null]>(
+        (resolve) =>
+          child.on("close", (exitCode, exitSignal) =>
+            resolve([exitCode, exitSignal]),
+          ),
+      );
+      expect(code === 130 || signal === "SIGINT").toBe(true);
+      expect(Date.now() - startedAt).toBeLessThan(2000);
+      const outputs = existsSync(path.join(cwd, "out"))
+        ? readdirSync(path.join(cwd, "out"))
+        : [];
+      expect(outputs.filter((name) => name.includes("konvertoj-tmp"))).toEqual(
+        [],
+      );
+    },
+  );
+});
+
 describe("coloursAllowed", () => {
   it("allows colours only in a terminal without NO_COLOR", () => {
     expect(coloursAllowed(true, {})).toBe(true);

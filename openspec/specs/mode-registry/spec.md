@@ -74,11 +74,15 @@ Every mode SHALL have:
 - **THEN** each has a non-empty description, at least one example starting with `konvertoj -m <name>`, at least one input format and an output description
 
 ### Requirement: Common options
-Every mode SHALL accept the common options `-o/--output`, `--overwrite`, `--strip-metadata`, `-r/--recursive`, `--dry-run`, `-q/--quiet` and `-v/--verbose`.
+Every mode SHALL accept the common options `-o/--output`, `--overwrite`, `--strip-metadata`, `-r/--recursive`, `--dry-run`, `-q/--quiet` and `-v/--verbose`, except that a mode which shows details instead of creating files SHALL NOT accept `-o/--output`, `--overwrite` or `--strip-metadata`, and its help SHALL NOT list them.
 
 #### Scenario: Common options on any mode
 - **WHEN** the options of `heictojpg`, `rotate` and `movtomp4` are inspected
 - **THEN** each includes all seven common options
+
+#### Scenario: Modes that print details
+- **WHEN** the options and help of `info` and `colorpick` are inspected
+- **THEN** they include `-r/--recursive`, `--dry-run`, `-q/--quiet` and `-v/--verbose`, but not `-o/--output`, `--overwrite` or `--strip-metadata`, and the usage line has no `-o`
 
 ### Requirement: Mode options
 Each mode SHALL declare the options its feature in Features.md describes, each with a short explanation and its default where there is one. An option name SHALL mean the same kind of value (a flag, or a value) in every mode that uses it.
@@ -109,11 +113,16 @@ A value option whose valid values are a fixed list of words, a number range, a c
   - `svgtopng`'s `--dpi` allows numbers from 1 to 7200,
   - `resize`'s `--scale` allows positive percentages such as `50%`,
   - `compress`'s `--target-size` allows a positive size in `kb` or `mb`, in any letter case, such as `200kb` or `1.5MB`,
-  - `crop`'s `--aspect` allows a ratio of two positive numbers, such as `16:9` or `1:1`.
+  - `crop`'s `--aspect` allows a ratio of two positive numbers, such as `16:9` or `1:1`,
+  - `colorpick`'s `--at` allows two whole numbers of 0 or more separated by a comma, such as `10,20`.
 
 #### Scenario: Defaults are valid
 - **WHEN** every option default in the registry is checked against its option's rule
 - **THEN** every default passes
+
+#### Scenario: Palette count has no default
+- **WHEN** `colorpick`'s options are inspected
+- **THEN** `--palette` has no default, because it always needs a count
 
 #### Scenario: TIFF quality has no default
 - **WHEN** `pngtotiff`'s options are inspected

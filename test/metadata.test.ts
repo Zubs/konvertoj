@@ -211,9 +211,11 @@ describe("--strip-metadata", () => {
     ).toBeUndefined();
   });
 
-  it("is accepted by every image, PDF and tool mode", () => {
-    const imageModes = modes.filter((mode) =>
-      ["Image", "PDF", "Tools"].includes(mode.group),
+  it("is accepted by every image, PDF and tool mode that creates files", () => {
+    const imageModes = modes.filter(
+      (mode) =>
+        ["Image", "PDF", "Tools"].includes(mode.group) &&
+        mode.output !== "none",
     );
     for (const mode of imageModes) {
       expect(

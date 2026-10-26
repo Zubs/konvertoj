@@ -55,9 +55,14 @@ export async function start(
       for (const file of pendingTemporaryFiles) {
         rmSync(file, { force: true });
       }
-      process.exit(130);
+      process.off("SIGINT", onInterrupt);
+      process.kill(process.pid, "SIGINT");
+      return;
     }
     controller.abort();
+    process.stderr.write(
+      "\nStopping after the files already in progress. Press Ctrl+C again to stop at once.\n",
+    );
   };
   process.on("SIGINT", onInterrupt);
   try {

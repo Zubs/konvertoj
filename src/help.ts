@@ -4,6 +4,7 @@ import {
   type OptionDefinition,
 } from "./modes/options.js";
 import {
+  commonOptionsFor,
   describeFormats,
   describeOutput,
   findMode,
@@ -97,14 +98,16 @@ export function modeHelp(mode: Mode): string {
     `${mode.name}: ${mode.description}`,
     "",
     "Usage:",
-    `  konvertoj -m ${mode.name} <input> -o <output> [options]`,
+    mode.output === "none"
+      ? `  konvertoj -m ${mode.name} <input> [options]`
+      : `  konvertoj -m ${mode.name} <input> -o <output> [options]`,
     "",
     `Input: ${describeFormats(mode.inputs)}`,
     `Output: ${describeOutput(mode)}`,
     ...modeOptions,
     "",
     "Common options:",
-    ...optionRows(commonOptions),
+    ...optionRows(commonOptionsFor(mode)),
     "",
     "Examples:",
     ...mode.examples.map((example) => `  ${example}`),
