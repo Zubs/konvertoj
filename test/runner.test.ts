@@ -157,6 +157,32 @@ describe("runBatch", () => {
     expect(exitCode).toBe(2);
   });
 
+  it("runs one file at a time for modes that use FFmpeg", async () => {
+    const cwd = makeFolder();
+    const plan = await planFor(
+      cwd,
+      names(4, (index) => `slow${index}.txt`),
+      "out",
+    );
+    const output = quietOutput();
+    await runBatch(
+      { ...runnableCopy, usesFfmpeg: true },
+      plan,
+      {
+        options: {},
+        overwrite: false,
+        cwd,
+        signal: new AbortController().signal,
+      },
+      new Reporter(
+        output,
+        { quiet: false, verbose: false, cwd },
+        plan.items.length,
+      ),
+    );
+    expect(copyStats.mostAtOnce).toBe(1);
+  });
+
   it("never runs more than 4 files at once", async () => {
     const cwd = makeFolder();
     await run(

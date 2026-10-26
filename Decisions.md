@@ -100,3 +100,14 @@ Decisions taken while building the features in [Features.md](Features.md) that g
 - **Downloads are locked and resumable by retrying.** A lock file, refreshed every few seconds, stops two runs downloading at once. A lock from a run that was killed counts as stale after 30 seconds. A download that stalls for 30 seconds, stops part-way or doesn't match its checksum leaves nothing behind.
 - **Tests use a local server and fake FFmpeg scripts.** The download source is a parameter, so tests serve a small gzipped file from `127.0.0.1` instead of downloading 20 to 30 MB. The fake FFmpeg is a shell script, which can't stand in for an executable on Windows (Node.js no longer runs `.cmd` files without a shell), so those tests are skipped there. The cache-folder, download-table and download tests still run on Windows.
 - **The real MP4 in the first-time scenario comes with feature 15.** `movtomp4` gets its conversion in feature 15. Feature 14's tests check the same journey with a test-only mode that runs FFmpeg.
+
+## 15. Video to MP4
+
+- **A 0-byte video says "is empty".** Features.md expects "has no video" for a 0-byte file. konvertoj checks every input's contents before any mode runs (feature 5), and an empty file is reported as "is empty" for every mode, which is just as clear. A file with no video stream, or with a video stream that holds no frames, says "has no video".
+- **Videos convert one at a time.** FFmpeg already uses every processor core, so running four at once would only compete for them and use more memory. The progress line shows the overall count and the current video's percentage.
+- **`--resolution` limits the shorter side.** `720p` means the shorter side is at most 720 pixels, so a portrait phone video becomes 720 × 1280 rather than 405 × 720. Videos are never enlarged.
+- **Odd sizes are trimmed to even ones.** H.264 needs even widths and heights, and FFmpeg 6 refuses odd ones, so a 321 × 181 screen recording becomes 320 × 180.
+- **The first video and audio streams are kept,** with AAC audio at 160 kb/s. Extra audio tracks, subtitles and chapters are left out.
+- **CI makes FFmpeg available with `--install-video`.** Before the tests, CI runs `konvertoj --install-video`. Where a runner has no FFmpeg, this downloads and verifies the real add-on. Video tests are skipped wherever no FFmpeg can be found.
+- **The main video stream is the one converted.** Cover pictures (attached pictures, or still-image codecs such as MJPEG and PNG) stored as an extra video stream are skipped, and the stream marked as the default is preferred, so a cover image never replaces the video.
+- **`--strip-metadata` works for video.** It removes the file's details, including any GPS location, and its chapters. Without it, the video's details are kept, as for images.

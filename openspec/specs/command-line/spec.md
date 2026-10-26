@@ -167,16 +167,16 @@ A mode name asking to create HEIC or SVG (`<format>toheic`, `toheic`, `<format>t
 A valid command for a registered mode whose work isn't built yet SHALL fail with exit code `1` and say `<mode> isn't available yet.` This SHALL happen after its inputs have been found and its outputs planned, so input mistakes are reported first, and SHALL NOT create any folders. `--dry-run` SHALL still print the plan and exit with `0`.
 
 #### Scenario: Running an unbuilt mode
-- **WHEN** a user runs `konvertoj -m movtomp4 clip.mov` before video conversion exists, and `clip.mov` exists
-- **THEN** it fails with exit code `1` and "movtomp4 isn't available yet."
+- **WHEN** a user runs `konvertoj -m mp4tomp3 clip.mp4` before audio extraction exists, and `clip.mp4` exists
+- **THEN** it fails with exit code `1` and "mp4tomp3 isn't available yet."
 
 #### Scenario: Input mistakes come first
-- **WHEN** a user runs `konvertoj -m movtomp4 missing.mov` and the file doesn't exist
-- **THEN** it fails, naming `missing.mov`, without mentioning that the mode isn't available
+- **WHEN** a user runs `konvertoj -m mp4tomp3 missing.mp4` and the file doesn't exist
+- **THEN** it fails, naming `missing.mp4`, without mentioning that the mode isn't available
 
 #### Scenario: Dry run of an unbuilt mode
-- **WHEN** a user runs `konvertoj -m movtomp4 clip.mov --dry-run`
-- **THEN** it prints `clip.mov → clip.mp4` and exits with `0`
+- **WHEN** a user runs `konvertoj -m mp4tomp3 clip.mp4 --dry-run`
+- **THEN** it prints `clip.mp4 → clip.mp3` and exits with `0`
 
 ### Requirement: Errors are for people
 Every command-line error SHALL go to standard error as a plain-English message without a stack trace, and SHALL say how to fix the problem. An unexpected error anywhere in konvertoj SHALL also be shown as a plain-English message that suggests running again with `--verbose`, with exit code `1`. Its technical details and stack trace SHALL appear only with `--verbose`.

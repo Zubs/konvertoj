@@ -174,7 +174,12 @@ export async function runBatch(
   };
   await Promise.all(
     Array.from(
-      { length: Math.min(parallelLimit(), plan.items.length) },
+      {
+        length: Math.min(
+          mode.usesFfmpeg ? 1 : parallelLimit(),
+          plan.items.length,
+        ),
+      },
       worker,
     ),
   );

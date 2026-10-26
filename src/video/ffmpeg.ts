@@ -7,7 +7,7 @@ import path from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { createGunzip } from "node:zlib";
-import { UserError } from "../errors.js";
+import { damagedFile, UserError } from "../errors.js";
 import { pendingTemporaryFiles } from "../output-files.js";
 import { formatSize } from "../report.js";
 
@@ -414,7 +414,7 @@ export function runFfmpeg(
     duration?: number;
     onProgress?: (fraction: number) => void;
   } = {},
-): Promise<void> {
+): Promise<{ frames: number }> {
   return new Promise((resolve, reject) => {
     const child = spawn(
       file,
@@ -430,13 +430,18 @@ export function runFfmpeg(
       { shell: false, windowsHide: true, signal },
     );
     let errors = "";
+    let frames = 0;
     let pending = "";
     child.stdout.setEncoding("utf8");
     child.stdout.on("data", (chunk: string) => {
       pending += chunk;
-      const lines = pending.split("\n");
+      const lines = pending.split(/\r?\n/);
       pending = lines.pop() ?? "";
       for (const line of lines) {
+        const frame = /^frame=(\d+)/.exec(line.trim())?.[1];
+        if (frame !== undefined) {
+          frames = Number(frame);
+        }
         const time = /^out_time_us=(\d+)/.exec(line.trim())?.[1];
         if (time !== undefined && duration && duration > 0) {
           onProgress(Math.min(1, Number(time) / 1e6 / duration));
@@ -450,10 +455,120 @@ export function runFfmpeg(
     child.on("error", reject);
     child.on("close", (code) => {
       if (code === 0) {
-        resolve();
+        resolve({ frames });
       } else {
-        reject(new Error(`FFmpeg exited with code ${code}: ${errors.trim()}`));
+        reject(
+          Object.assign(
+            new Error(`FFmpeg exited with code ${code}: ${errors.trim()}`),
+            { frames },
+          ),
+        );
       }
     });
+  });
+}
+
+export interface MediaInfo {
+  duration?: number;
+  video?: { codec: string; width: number; height: number; stream: number };
+  hasAudio: boolean;
+}
+
+const damagedSigns = [
+  "invalid data found",
+  "moov atom not found",
+  "could not find codec parameters",
+];
+
+const pictureCodecs = ["mjpeg", "png", "bmp", "gif", "webp"];
+
+function videoStreams(lines: string[]) {
+  const starts = lines
+    .map((line, index) => (/Stream #.*: Video: /.test(line) ? index : -1))
+    .filter((index) => index !== -1);
+  return starts.map((start, order) => {
+    const line = lines[start] ?? "";
+    const next = lines.findIndex(
+      (other, index) => index > start && /^\s*Stream #/.test(other),
+    );
+    const own = lines.slice(start + 1, next === -1 ? undefined : next);
+    const codec = /: Video: (\w+)/.exec(line)?.[1] ?? "unknown";
+    return {
+      order,
+      line,
+      own,
+      codec,
+      picture: /attached pic/.test(line) || pictureCodecs.includes(codec),
+      main: /\(default\)/.test(line),
+    };
+  });
+}
+
+export function readMediaInfo(text: string): MediaInfo {
+  const lines = text.split(/\r?\n/);
+  const duration = /Duration: (\d+):(\d\d):(\d\d(?:\.\d+)?)/.exec(text);
+  const info: MediaInfo = {
+    duration: duration
+      ? Number(duration[1]) * 3600 +
+        Number(duration[2]) * 60 +
+        Number(duration[3])
+      : undefined,
+    hasAudio: lines.some((line) => /Stream #.*: Audio: /.test(line)),
+  };
+  const streams = videoStreams(lines);
+  const moving = streams.filter((stream) => !stream.picture);
+  const chosen =
+    moving.find((stream) => stream.main) ?? moving[0] ?? streams[0];
+  if (!chosen) {
+    return info;
+  }
+  const size = /, (\d{2,5})x(\d{2,5})/.exec(chosen.line);
+  const rotation = Number(
+    chosen.own
+      .map(
+        (other) => /display ?matrix: rotation of (-?[\d.]+)/i.exec(other)?.[1],
+      )
+      .find((value) => value !== undefined) ?? 0,
+  );
+  const turned = Math.abs(Math.round(rotation)) % 180 === 90;
+  const width = Number(size?.[1] ?? 0);
+  const height = Number(size?.[2] ?? 0);
+  info.video = {
+    codec: chosen.codec,
+    width: turned ? height : width,
+    height: turned ? width : height,
+    stream: chosen.order,
+  };
+  return info;
+}
+
+export function looksDamaged(text: string): boolean {
+  const lower = text.toLowerCase();
+  return damagedSigns.some((sign) => lower.includes(sign));
+}
+
+export function probeMedia(
+  file: string,
+  input: string,
+  signal?: AbortSignal,
+): Promise<MediaInfo> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      file,
+      ["-hide_banner", "-nostdin", "-i", input],
+      { windowsHide: true, signal, maxBuffer: 4 * 1024 * 1024 },
+      (error, _stdout, stderr) => {
+        if (signal?.aborted) {
+          reject(error);
+          return;
+        }
+        const text = String(stderr);
+        if (looksDamaged(text) || !/Input #0/.test(text)) {
+          reject(damagedFile(new Error(text.trim().slice(-1000))));
+          return;
+        }
+        resolve(readMediaInfo(text));
+      },
+    );
   });
 }

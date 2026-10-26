@@ -32,7 +32,7 @@ The test suite SHALL run every test under `test/`, and SHALL include at least on
 - **THEN** at least one test runs and all tests pass
 
 ### Requirement: Continuous integration on three systems
-For every push and pull request, CI SHALL run `npm run check`, `npm test` and `npm run build` on Ubuntu, macOS and Windows. A failure on any one system SHALL fail the run, and a failure on one system SHALL NOT cancel the others.
+For every push and pull request, CI SHALL run `npm run check`, `npm test` and `npm run build` on Ubuntu, macOS and Windows. Before the tests, it SHALL build konvertoj and install the video add-on with `konvertoj --install-video`, so video tests run with the real downloaded FFmpeg on every system. A failure on any one system SHALL fail the run, and a failure on one system SHALL NOT cancel the others.
 
 #### Scenario: All systems pass
 - **WHEN** a commit is pushed and every check passes on all three systems

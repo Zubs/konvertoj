@@ -267,8 +267,8 @@ describe("main", () => {
 
   it("says when a mode isn't built yet", async () => {
     await expectFailure(
-      ["-m", "movtomp4", "clip.mov"],
-      "movtomp4 isn't available yet.",
+      ["-m", "mp4tomp3", "clip.mp4"],
+      "mp4tomp3 isn't available yet.",
     );
   });
   it("checks a mode's own option rules before inputs", async () => {
@@ -289,8 +289,8 @@ describe("main", () => {
 
   it("reports input mistakes before saying a mode isn't built", async () => {
     const result = await expectFailure(
-      ["-m", "movtomp4", "missing.mov"],
-      "missing.mov can't be found",
+      ["-m", "mp4tomp3", "missing.mp4"],
+      "missing.mp4 can't be found",
     );
     expect(result.stderr).not.toContain("isn't available yet");
   });
@@ -407,8 +407,8 @@ describe("main", () => {
 
   it("says an unbuilt mode isn't available without creating the -o folder", async () => {
     await expectFailure(
-      ["-m", "movtomp4", "clip.mov", "-o", "converted/"],
-      "movtomp4 isn't available yet.",
+      ["-m", "mp4tomp3", "clip.mp4", "-o", "converted/"],
+      "mp4tomp3 isn't available yet.",
     );
     expect(existsSync(path.join(workFolder, "converted"))).toBe(false);
   });

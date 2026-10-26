@@ -386,6 +386,8 @@ function videoAndAudioModes(): Mode[] {
 
 function videoAndAudioDefinitions(): Mode[] {
   const toMp4Options = [videoQuality, resolution, mute];
+  const toMp4Run: Mode["run"] = async (context) =>
+    (await import("../video/mp4.js")).convertToMp4(context);
   const toMp4 = videoInputs
     .filter((from) => from !== "mp4")
     .map((from) => ({
@@ -394,6 +396,7 @@ function videoAndAudioDefinitions(): Mode[] {
       inputs: [from],
       output: "mp4",
       options: toMp4Options,
+      run: toMp4Run,
       description: `Convert ${label(from)} video to MP4`,
       examples: [`konvertoj -m ${from}tomp4 ${sampleFiles[from]}`],
     }));
@@ -403,6 +406,7 @@ function videoAndAudioDefinitions(): Mode[] {
     inputs: videoInputs,
     output: "mp4",
     options: toMp4Options,
+    run: toMp4Run,
     description: `Convert ${anyVideoLabel} to MP4`,
     examples: ["konvertoj -m tomp4 ./videos -o ./mp4s"],
   };
