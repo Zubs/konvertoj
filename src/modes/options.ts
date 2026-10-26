@@ -284,6 +284,12 @@ export const aspect = value(
   "aspect",
   "ratio",
   "Aspect ratio to crop to, e.g. 16:9 or 1:1",
+  {
+    rule: {
+      pattern: /^(?=[^:]*[1-9])\d+(\.\d+)?:(?=.*[1-9])\d+(\.\d+)?$/,
+      description: "a ratio such as 16:9 or 1:1",
+    },
+  },
 );
 export const trim = flag("trim", "Remove plain borders around the image");
 export const angle = value(

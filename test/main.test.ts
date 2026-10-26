@@ -101,8 +101,16 @@ describe("main", () => {
   });
 
   it("treats -o and --output the same", async () => {
-    expect(await run("-m", "heictojpg", "photo.heic", "-o", "beach")).toEqual(
-      await run("-m", "heictojpg", "photo.heic", "--output", "beach"),
+    const withoutTiming = (result: Awaited<ReturnType<typeof run>>) => ({
+      ...result,
+      stdout: result.stdout.replace(/Done in [\d.ms ]+:/, "Done:"),
+    });
+    expect(
+      withoutTiming(await run("-m", "heictojpg", "photo.heic", "-o", "beach")),
+    ).toEqual(
+      withoutTiming(
+        await run("-m", "heictojpg", "photo.heic", "--output", "beach"),
+      ),
     );
   });
 
@@ -226,7 +234,7 @@ describe("main", () => {
     ["heictojpg", "photo.heic", "--quality", "100"],
     ["movtomp4", "clip.mov", "--quality", "HIGH"],
     ["rotate", "photo.jpg", "--angle", "-90"],
-    ["crop", "photo.jpg", "--aspect", "banana"],
+    ["pdftopng", "report.pdf", "--page", "banana"],
     ["heictojpg", "photo.heic", "--background", "red"],
     ["heictojpg", "photo.heic", "--background", "#f80"],
     ["heictojpg", "photo.heic", "--background", "#FF8800"],

@@ -131,6 +131,57 @@ function compressProblem(options: RunContext["options"]): string | undefined {
     : undefined;
 }
 
+function editWith(
+  name: "cropImage" | "rotateImage" | "flipImage",
+): Mode["run"] {
+  return async (context) => (await import("../convert/edit.js"))[name](context);
+}
+
+function cropProblem(options: RunContext["options"]): string | undefined {
+  const has = (name: string) => options[name] !== undefined;
+  const sized = has("width") || has("height");
+  const placedExactly = has("left") || has("top");
+  if (!sized && !has("aspect") && !has("trim") && !placedExactly) {
+    return "Choose how to crop: --width and --height (placed with --left and --top, or --position), --aspect such as 16:9, or --trim.";
+  }
+  if (
+    has("trim") &&
+    (sized || placedExactly || has("aspect") || has("position"))
+  ) {
+    return has("aspect")
+      ? "--aspect and --trim can't be used together. Choose one way to crop."
+      : "--trim can't be used with other crop options. Use it on its own.";
+  }
+  if (has("aspect") && (sized || placedExactly)) {
+    return "--aspect can't be used with --width, --height, --left or --top. Choose one way to crop.";
+  }
+  if (has("left") !== has("top")) {
+    return "--left and --top go together. Give both, or use --position.";
+  }
+  if (has("aspect") || has("trim")) {
+    return undefined;
+  }
+  if (!has("width") || !has("height")) {
+    return "--width and --height go together for crop. Give both.";
+  }
+  if (placedExactly && has("position")) {
+    return "--position can't be used with --left and --top. Choose one way to place the crop.";
+  }
+  return undefined;
+}
+
+function rotateProblem(options: RunContext["options"]): string | undefined {
+  return options.angle === undefined && options.auto === undefined
+    ? "Give --angle, e.g. --angle 90, or --auto to turn a photo upright."
+    : undefined;
+}
+
+function flipProblem(options: RunContext["options"]): string | undefined {
+  return options.direction === undefined
+    ? "Give --direction horizontal or --direction vertical."
+    : undefined;
+}
+
 function targetEncodingOptions(target: string): OptionDefinition[] {
   const options: OptionDefinition[] = [];
   if (target in defaultQualities || target === "tiff") {
@@ -356,6 +407,8 @@ function toolModes(): Mode[] {
       output: "same",
       outputSuffix: "cropped",
       options: [width, height, left, top, position, aspect, trim],
+      checkOptions: cropProblem,
+      run: editWith("cropImage"),
       description:
         "Cut an image to an area, a position or an aspect ratio, or trim plain borders",
       examples: [
@@ -370,6 +423,8 @@ function toolModes(): Mode[] {
       output: "same",
       outputSuffix: "rotated",
       options: [angle, auto, rotateBackground],
+      checkOptions: rotateProblem,
+      run: editWith("rotateImage"),
       description:
         "Turn an image by any angle, or upright using its orientation tag",
       examples: [
@@ -383,6 +438,8 @@ function toolModes(): Mode[] {
       output: "same",
       outputSuffix: "flipped",
       options: [direction],
+      checkOptions: flipProblem,
+      run: editWith("flipImage"),
       description: "Mirror an image horizontally or vertically",
       examples: ["konvertoj -m flip selfie.jpg --direction horizontal"],
     }),

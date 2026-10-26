@@ -54,3 +54,14 @@ Decisions taken while building the features in [Features.md](Features.md) that g
 - **Kept details can make small files "already optimised".** `compress` keeps camera details and writes an sRGB profile, like every conversion. For a tiny, well-compressed file those few hundred bytes can make the result bigger, and the file is then left alone. `--strip-metadata` removes them.
 - **Tools that keep the format follow the real format.** A PNG named `screen.jpg` given to `compress`, `resize`, `enlarge` or `strip` is saved as `screen-compressed.png`, with a note, rather than writing PNG data into a `.jpg` file.
 - **A closed output pipe doesn't stop the work.** When konvertoj's output is piped into a command that stops reading early, such as `head`, konvertoj stops printing but finishes the files it was working on, and exits with its normal code. Without this, Node.js would crash with an EPIPE error and could leave work half done.
+
+## 11. Crop, rotate and flip
+
+- **`crop` needs both `--width` and `--height`.** Features.md lists them together for both the exact-area and position methods. Giving only one is rejected as incomplete rather than guessing the other side.
+- **`rotate --auto` skips photos that are already upright.** Features.md says `--auto` "changes nothing" on an upright photo. Such photos, and BMP and ICO files, which have no orientation tag, are reported as skipped with "already upright", and nothing is written. With `--angle` as well, the photo is always turned upright and then rotated.
+- **Animated images are rotated frame by frame.** sharp can't rotate multi-page images, so each frame is rotated on its own and the frames are joined again, keeping delays and loop count. An animated WebP rotated this way loses its EXIF and XMP, because the rebuilt frames carry none. Animated WebPs rarely have camera details.
+- **`--trim` on an animation uses the first frame's border** for every frame, because sharp can't trim multi-page images directly.
+- **Edits re-encode the image.** Cropping, rotating and flipping save the image again at the format's default quality, like `resize`. There is no lossless JPEG rotation.
+- **Fixed in passing:** the test that compares `-o` and `--output` now ignores the run time in the summary, because the conversion really runs and its duration can differ by a tenth of a second.
+- **Edited icons are one square icon.** `crop`, `rotate` and `flip` on an ICO write a single icon at the edited image's larger side, as `resize` and `enlarge` do. ICO entries are square, so a non-square result is padded with transparency to a square, the same way conversions to ICO are.
+- **Animated vertical flips go frame by frame.** Flipping the whole animation at once would reverse the frame order, so each frame is flipped on its own, like rotation.

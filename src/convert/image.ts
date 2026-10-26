@@ -12,7 +12,7 @@ import {
 import { defaultQualities, formatLabels } from "../modes/formats.js";
 import { background, sizes } from "../modes/options.js";
 import type { RunContext } from "../modes/registry.js";
-import { openImage } from "./decode.js";
+import { openImage, type OpenedImage } from "./decode.js";
 import { writeIco } from "./ico.js";
 import { readDetails, type Details } from "./metadata.js";
 import {
@@ -27,6 +27,8 @@ export interface ConvertSettings {
   keepFormat?: boolean;
   enlarge?: boolean;
   quality?: number;
+  resize?: false;
+  edit?: (image: Sharp, source: OpenedImage, target: string) => Promise<Sharp>;
 }
 
 const animatableFormats = ["gif", "webp"];
@@ -76,16 +78,9 @@ async function bmpFile(image: Sharp): Promise<Buffer> {
 function iconSizesFor(
   options: RunContext["options"],
   keepFormat: boolean,
-  result: { width: number; height: number },
-): number[] {
+): number[] | undefined {
   if (keepFormat) {
-    const side = Math.max(result.width, result.height);
-    if (side > largestIcon) {
-      throw new UserError(
-        `would be ${side} pixels, but icons can be at most ${largestIcon} pixels wide. Choose a smaller size.`,
-      );
-    }
-    return [side];
+    return undefined;
   }
   const wanted =
     typeof options.sizes === "string" ? options.sizes : sizes.defaultValue;
@@ -94,10 +89,22 @@ function iconSizesFor(
   );
 }
 
-async function icoFile(image: Sharp, iconSizes: number[]): Promise<Buffer> {
-  const base = sharp(await image.png().toBuffer());
+async function icoFile(
+  image: Sharp,
+  iconSizes: number[] | undefined,
+): Promise<Buffer> {
+  const { data, info } = await image
+    .png()
+    .toBuffer({ resolveWithObject: true });
+  const side = Math.max(info.width, info.height);
+  if (!iconSizes && side > largestIcon) {
+    throw new UserError(
+      `would be ${side} pixels, but icons can be at most ${largestIcon} pixels wide. Choose a smaller size.`,
+    );
+  }
+  const base = sharp(data);
   const images = await Promise.all(
-    iconSizes.map(async (size) => ({
+    (iconSizes ?? [side]).map(async (size) => ({
       size,
       png: await base
         .clone()
@@ -113,8 +120,9 @@ function encode(
   image: Sharp,
   target: string,
   options: RunContext["options"],
-  iconSizes: number[],
+  iconSizes: number[] | undefined,
   compressQuality: number | undefined,
+  animation: { delay?: number[]; loop?: number },
 ): Promise<Buffer> {
   const lossless = options.lossless === true;
   const chosen = quality(options, target, compressQuality);
@@ -133,14 +141,15 @@ function encode(
           : image.png({ palette: true, quality: compressQuality, effort: 10 })
       ).toBuffer();
     case "webp":
-      return image.webp({ quality: chosen, lossless }).toBuffer();
+      return image.webp({ quality: chosen, lossless, ...animation }).toBuffer();
     case "avif":
       return image.avif({ quality: chosen, lossless }).toBuffer();
     case "gif":
       return (
         compressQuality === undefined
-          ? image.gif()
+          ? image.gif(animation)
           : image.gif({
+              ...animation,
               effort: 10,
               reuse: false,
               interFrameMaxError: frameSharing(compressQuality),
@@ -203,7 +212,10 @@ function reportDetails(
   }
 }
 
-function losesTransparency(target: string, options: RunContext["options"]) {
+export function losesTransparency(
+  target: string,
+  options: RunContext["options"],
+) {
   return (
     target === "jpg" ||
     target === "bmp" ||
@@ -211,7 +223,7 @@ function losesTransparency(target: string, options: RunContext["options"]) {
   );
 }
 
-function backgroundColour(options: RunContext["options"]): string {
+export function backgroundColour(options: RunContext["options"]): string {
   return typeof options.background === "string"
     ? options.background
     : (background.defaultValue ?? "white");
@@ -247,7 +259,13 @@ function finalPlan(
 export async function renderImage(
   context: RunContext,
   target: string,
-  { keepFormat = false, enlarge = false, quality }: ConvertSettings = {},
+  {
+    keepFormat = false,
+    enlarge = false,
+    quality,
+    resize,
+    edit,
+  }: ConvertSettings = {},
 ): Promise<Buffer> {
   const [input] = context.inputs;
   if (!input) {
@@ -261,11 +279,15 @@ export async function renderImage(
     input,
     options,
     animated,
-    sizeRequest(options, enlarge),
+    resize === false ? { fit: "inside" } : sizeRequest(options, enlarge),
   );
-  const plan = finalPlan(context, opened, enlarge);
-  const iconSizes =
-    target === "ico" ? iconSizesFor(options, keepFormat, plan ?? opened) : [];
+  const plan =
+    resize === false ? undefined : finalPlan(context, opened, enlarge);
+  const iconSizes = iconSizesFor(options, keepFormat);
+  const animation =
+    animated && opened.pages > 1
+      ? { delay: opened.metadata?.delay, loop: opened.metadata?.loop }
+      : {};
   const details =
     options["strip-metadata"] === true
       ? undefined
@@ -280,6 +302,9 @@ export async function renderImage(
           : transparent,
         sharpen: enlarge,
       });
+    }
+    if (edit) {
+      image = await edit(image, opened, target);
     }
     if (opened.pages > 1 && !animated) {
       context.note(
@@ -300,6 +325,7 @@ export async function renderImage(
       options,
       iconSizes,
       quality,
+      animation,
     );
   } catch (error) {
     if (isUserError(error) || isFileSystemError(error)) {
