@@ -4,7 +4,8 @@ export type OptionRule =
   | { choices: string[] }
   | { min?: number; max?: number; wholeNumber: boolean }
   | { colour: true }
-  | { sizeList: { min: number; max: number } };
+  | { sizeList: { min: number; max: number } }
+  | { pattern: RegExp; description: string };
 
 export interface OptionDefinition {
   name: string;
@@ -219,6 +220,12 @@ export const resizeScale = value(
   "scale",
   "percent",
   "New size as a percentage, e.g. 50%",
+  {
+    rule: {
+      pattern: /^(?=.*[1-9])\d+(\.\d+)?%$/,
+      description: "a percentage such as 50% or 200%",
+    },
+  },
 );
 export const noEnlarge = flag("no-enlarge", "Never make the image bigger");
 export const enlargeScale = value(
@@ -322,6 +329,9 @@ export function describeRule(rule: OptionRule): string {
   if ("colour" in rule) {
     return "a colour such as white, #ff8800 or rgb(255,136,0)";
   }
+  if ("pattern" in rule) {
+    return rule.description;
+  }
   if ("sizeList" in rule) {
     return `whole numbers from ${rule.sizeList.min} to ${rule.sizeList.max} separated by commas`;
   }
@@ -343,6 +353,9 @@ export function followsRule(rule: OptionRule, given: string): boolean {
   }
   if ("colour" in rule) {
     return isColour(given);
+  }
+  if ("pattern" in rule) {
+    return rule.pattern.test(given);
   }
   if ("sizeList" in rule) {
     return (

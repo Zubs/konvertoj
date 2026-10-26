@@ -158,7 +158,7 @@ export async function main(
     return 0;
   }
 
-  const problem = optionProblem(mode, tokens);
+  const problem = optionProblem(mode, tokens) ?? mode.checkOptions?.(values);
   if (problem) {
     return fail(problem);
   }

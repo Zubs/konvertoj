@@ -2,7 +2,7 @@ import { Buffer } from "node:buffer";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { encode as encodeBmp } from "bmp-ts";
-import type { Sharp } from "sharp";
+import sharp, { type Sharp } from "sharp";
 import {
   damagedFile,
   isFileSystemError,
@@ -15,11 +15,24 @@ import type { RunContext } from "../modes/registry.js";
 import { openImage } from "./decode.js";
 import { writeIco } from "./ico.js";
 import { readDetails, type Details } from "./metadata.js";
+import {
+  applyResize,
+  largestSide,
+  planSize,
+  sizeRequest,
+  type SizePlan,
+} from "./resize.js";
+
+export interface ConvertSettings {
+  keepFormat?: boolean;
+  enlarge?: boolean;
+}
 
 const animatableFormats = ["gif", "webp"];
 const formatsWithoutDetails = ["bmp", "gif", "ico"];
 const repackedFormats = ["bmp", "ico"];
 const transparent = { r: 0, g: 0, b: 0, alpha: 0 };
+const largestIcon = 256;
 
 function quality(options: RunContext["options"], target: string) {
   return typeof options.quality === "string"
@@ -47,19 +60,33 @@ async function bmpFile(image: Sharp): Promise<Buffer> {
   }).data;
 }
 
-async function icoFile(
-  image: Sharp,
+function iconSizesFor(
   options: RunContext["options"],
-): Promise<Buffer> {
+  keepFormat: boolean,
+  result: { width: number; height: number },
+): number[] {
+  if (keepFormat) {
+    const side = Math.max(result.width, result.height);
+    if (side > largestIcon) {
+      throw new UserError(
+        `would be ${side} pixels, but icons can be at most ${largestIcon} pixels wide. Choose a smaller size.`,
+      );
+    }
+    return [side];
+  }
   const wanted =
     typeof options.sizes === "string" ? options.sizes : sizes.defaultValue;
-  const iconSizes = [...new Set((wanted ?? "").split(",").map(Number))].sort(
+  return [...new Set((wanted ?? "").split(",").map(Number))].sort(
     (a, b) => a - b,
   );
+}
+
+async function icoFile(image: Sharp, iconSizes: number[]): Promise<Buffer> {
+  const base = sharp(await image.png().toBuffer());
   const images = await Promise.all(
     iconSizes.map(async (size) => ({
       size,
-      png: await image
+      png: await base
         .clone()
         .resize(size, size, { fit: "contain", background: transparent })
         .png()
@@ -73,6 +100,7 @@ function encode(
   image: Sharp,
   target: string,
   options: RunContext["options"],
+  iconSizes: number[],
 ): Promise<Buffer> {
   const lossless = options.lossless === true;
   switch (target) {
@@ -98,7 +126,7 @@ function encode(
     case "bmp":
       return bmpFile(image);
     case "ico":
-      return icoFile(image, options);
+      return icoFile(image, iconSizes);
     default:
       return (
         typeof options.quality === "string"
@@ -159,9 +187,43 @@ function losesTransparency(target: string, options: RunContext["options"]) {
   );
 }
 
+function backgroundColour(options: RunContext["options"]): string {
+  return typeof options.background === "string"
+    ? options.background
+    : (background.defaultValue ?? "white");
+}
+
+function finalPlan(
+  context: RunContext,
+  source: { width: number; height: number; plan?: SizePlan },
+  enlarge: boolean,
+): SizePlan | undefined {
+  const plan =
+    source.plan ?? planSize(source, sizeRequest(context.options, enlarge));
+  if (!plan) {
+    return undefined;
+  }
+  if (
+    context.options["no-enlarge"] === true &&
+    (plan.width > source.width || plan.height > source.height)
+  ) {
+    context.note(
+      `kept at ${source.width} × ${source.height}, because --no-enlarge stops images getting bigger`,
+    );
+    return undefined;
+  }
+  if (Math.max(plan.width, plan.height) > largestSide) {
+    throw new UserError(
+      `would be ${plan.width} × ${plan.height} pixels, larger than the ${largestSide}-pixel limit on a side. Choose a smaller size.`,
+    );
+  }
+  return plan;
+}
+
 export async function convertImage(
   context: RunContext,
   target: string,
+  { keepFormat = false, enlarge = false }: ConvertSettings = {},
 ): Promise<void> {
   const [input] = context.inputs;
   if (!input) {
@@ -171,7 +233,15 @@ export async function convertImage(
   const { options } = context;
   const animated =
     animatableFormats.includes(target) && animatableFormats.includes(format);
-  const opened = await openImage(input, options, animated);
+  const opened = await openImage(
+    input,
+    options,
+    animated,
+    sizeRequest(options, enlarge),
+  );
+  const plan = finalPlan(context, opened, enlarge);
+  const iconSizes =
+    target === "ico" ? iconSizesFor(options, keepFormat, plan ?? opened) : [];
   const details =
     options["strip-metadata"] === true
       ? undefined
@@ -180,6 +250,14 @@ export async function convertImage(
   let encoded: Buffer;
   try {
     let { image } = opened;
+    if (plan) {
+      image = applyResize(image, plan, {
+        background: losesTransparency(target, options)
+          ? backgroundColour(options)
+          : transparent,
+        sharpen: enlarge,
+      });
+    }
     if (opened.pages > 1 && !animated) {
       context.note(
         animatableFormats.includes(format)
@@ -191,17 +269,13 @@ export async function convertImage(
       image = image.grayscale();
     }
     if (losesTransparency(target, options)) {
-      image = image.flatten({
-        background:
-          typeof options.background === "string"
-            ? options.background
-            : background.defaultValue,
-      });
+      image = image.flatten({ background: backgroundColour(options) });
     }
     encoded = await encode(
       withDetails(image, target, details),
       target,
       options,
+      iconSizes,
     );
   } catch (error) {
     if (isUserError(error) || isFileSystemError(error)) {

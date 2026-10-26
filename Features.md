@@ -18,7 +18,7 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - [x] 6. Core image conversion
 - [x] 7. Other image formats
 - [x] 8. Metadata and strip
-- [ ] 9. Resize and enlarge
+- [x] 9. Resize and enlarge
 - [ ] 10. Compress
 - [ ] 11. Crop, rotate and flip
 - [ ] 12. Info and colour picker

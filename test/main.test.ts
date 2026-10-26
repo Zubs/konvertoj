@@ -263,6 +263,14 @@ describe("main", () => {
       "movtomp4 isn't available yet.",
     );
   });
+  it("checks a mode's own option rules before inputs", async () => {
+    const result = await expectFailure(
+      ["-m", "resize", "missing.jpg"],
+      "Give --width, --height or --scale",
+    );
+    expect(result.stderr).not.toContain("can't be found");
+  });
+
   it("checks option values before inputs", async () => {
     const result = await expectFailure(
       ["-m", "heictojpg", "missing.heic", "--quality", "101"],

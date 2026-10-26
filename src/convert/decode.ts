@@ -11,6 +11,7 @@ import {
 } from "../errors.js";
 import type { InputFile } from "../inputs.js";
 import type { RunContext } from "../modes/registry.js";
+import { planSize, type SizePlan, type SizeRequest } from "./resize.js";
 
 export interface OpenedImage {
   image: Sharp;
@@ -18,6 +19,7 @@ export interface OpenedImage {
   height: number;
   pages: number;
   metadata?: Metadata;
+  plan?: SizePlan;
 }
 
 const largestDensity = 100000;
@@ -111,10 +113,6 @@ function hasSvgLength(tag: string, name: string): boolean {
   ).test(tag);
 }
 
-function wholeNumber(value: string | boolean | undefined): number | undefined {
-  return typeof value === "string" ? Number(value) : undefined;
-}
-
 function withDefaultSize(markup: string, tag: string): string {
   const [, viewBoxWidth, viewBoxHeight] = viewBoxSize.exec(tag) ?? [];
   const height =
@@ -130,6 +128,7 @@ function withDefaultSize(markup: string, tag: string): string {
 async function openSvg(
   path: string,
   options: RunContext["options"],
+  request: SizeRequest,
 ): Promise<OpenedImage> {
   const markup = await readFile(path, "utf8");
   const tag = svgStartTag.exec(markup)?.[0] ?? "";
@@ -139,15 +138,13 @@ async function openSvg(
   );
   const { width: naturalWidth = 1, height: naturalHeight = 1 } =
     await sharp(buffer).metadata();
-  const wantedWidth = wholeNumber(options.width);
-  const wantedHeight = wholeNumber(options.height);
-  const scales = [
-    wantedWidth === undefined ? undefined : wantedWidth / naturalWidth,
-    wantedHeight === undefined ? undefined : wantedHeight / naturalHeight,
-  ].filter((scale) => scale !== undefined);
+  const plan = planSize(
+    { width: naturalWidth, height: naturalHeight },
+    request,
+  );
   let scale = 1;
-  if (scales.length > 0) {
-    scale = Math.min(...scales);
+  if (plan) {
+    scale = Math.max(plan.width / naturalWidth, plan.height / naturalHeight);
   } else if (typeof options.dpi === "string") {
     scale = Number(options.dpi) / 72;
   }
@@ -157,15 +154,12 @@ async function openSvg(
       "would be too large to draw at that size. Choose a smaller --width, --height or --dpi.",
     );
   }
-  let image = sharp(buffer, { density: Math.max(1, density) });
-  if (wantedWidth !== undefined || wantedHeight !== undefined) {
-    image = image.resize(wantedWidth, wantedHeight, { fit: "inside" });
-  }
   return {
-    image,
+    image: sharp(buffer, { density: Math.max(1, density) }),
     width: Math.round(naturalWidth * scale),
     height: Math.round(naturalHeight * scale),
     pages: 1,
+    plan,
   };
 }
 
@@ -173,8 +167,8 @@ async function openCore(path: string, animated: boolean): Promise<OpenedImage> {
   const metadata = await sharp(path, { limitInputPixels: false }).metadata();
   return {
     image: sharp(path, { animated, autoOrient: true }),
-    width: metadata.width,
-    height: metadata.height,
+    width: metadata.autoOrient.width,
+    height: metadata.autoOrient.height,
     pages: metadata.pages ?? 1,
     metadata,
   };
@@ -184,6 +178,7 @@ export async function openImage(
   input: InputFile,
   options: RunContext["options"],
   animated: boolean,
+  request: SizeRequest,
 ): Promise<OpenedImage> {
   try {
     switch (input.format) {
@@ -194,7 +189,7 @@ export async function openImage(
       case "ico":
         return await openIco(input.path);
       case "svg":
-        return await openSvg(input.path, options);
+        return await openSvg(input.path, options, request);
       default:
         return await openCore(input.path, animated);
     }

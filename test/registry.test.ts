@@ -201,6 +201,9 @@ describe("mode registry", () => {
     expect(option("pngtoico", "sizes")?.rule).toEqual({
       sizeList: { min: 1, max: 256 },
     });
+    expect(option("resize", "scale")?.rule).toMatchObject({
+      description: "a percentage such as 50% or 200%",
+    });
     expect(option("svgtopng", "dpi")?.rule).toEqual({
       min: 1,
       max: 7200,

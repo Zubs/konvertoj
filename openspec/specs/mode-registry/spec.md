@@ -92,7 +92,7 @@ Each mode SHALL declare the options its feature in Features.md describes, each w
 - **THEN** no option is a flag in one mode and takes a value in another
 
 ### Requirement: Option value rules
-A value option whose valid values are a fixed list of words, a number range, a colour or a list of sizes SHALL declare that list, range, colour rule or size list rule for its mode. A range SHALL state whether only whole numbers are allowed. Every declared default SHALL satisfy its own rule.
+A value option whose valid values are a fixed list of words, a number range, a colour, a list of sizes or a fixed pattern SHALL declare that list, range, colour rule, size list rule or pattern for its mode. A range SHALL state whether only whole numbers are allowed. Every declared default SHALL satisfy its own rule.
 
 #### Scenario: Declared rules
 - **WHEN** the registry is inspected
@@ -106,7 +106,8 @@ A value option whose valid values are a fixed list of words, a number range, a c
   - `pdftopng`'s `--dpi` allows 36 to 600,
   - `--background` in `pngtojpg` and `rotate` allows colours,
   - `pngtoico`'s `--sizes` allows comma-separated whole numbers from 1 to 256,
-  - `svgtopng`'s `--dpi` allows numbers from 1 to 7200.
+  - `svgtopng`'s `--dpi` allows numbers from 1 to 7200,
+  - `resize`'s `--scale` allows positive percentages such as `50%`.
 
 #### Scenario: Defaults are valid
 - **WHEN** every option default in the registry is checked against its option's rule

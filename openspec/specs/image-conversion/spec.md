@@ -6,7 +6,7 @@ Defines how konvertoj converts images between formats on the user's computer: wh
 ## Requirements
 
 ### Requirement: Core format conversions
-Every `<from>to<to>` image mode and every `to<format>` image mode SHALL convert its input into a file of the target format, the right way up. Between JPG, PNG, WebP, AVIF, GIF, TIFF and BMP the output SHALL have the input's width and height. HEIC, SVG and ICO inputs and ICO outputs follow their own requirements below.
+Every `<from>to<to>` image mode and every `to<format>` image mode SHALL convert its input into a file of the target format, the right way up. Between JPG, PNG, WebP, AVIF, GIF, TIFF and BMP the output SHALL have the input's width and height, unless `--width` or `--height` is given (see image-resizing). HEIC, SVG and ICO inputs and ICO outputs follow their own requirements below.
 
 #### Scenario: One PNG to every core format
 - **WHEN** one PNG is converted with `pngtojpg`, `pngtowebp`, `pngtoavif`, `pngtogif` and `pngtotiff`

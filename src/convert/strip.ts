@@ -28,5 +28,6 @@ export async function stripDetails(context: RunContext): Promise<void> {
       },
     },
     input.format ?? "",
+    { keepFormat: true },
   );
 }

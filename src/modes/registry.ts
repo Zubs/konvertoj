@@ -75,6 +75,7 @@ export interface Mode {
   examples: string[];
   outputSuffix?: string;
   combinesInputs?: true;
+  checkOptions?: (options: RunContext["options"]) => string | undefined;
   run?: (context: RunContext) => Promise<{ skipped: string } | void>;
 }
 
@@ -99,6 +100,26 @@ function label(format: string): string {
 function convertTo(target: string): Mode["run"] {
   return async (context) =>
     (await import("../convert/image.js")).convertImage(context, target);
+}
+
+function convertKeepingFormat(enlarge: boolean): Mode["run"] {
+  return async (context) =>
+    (await import("../convert/image.js")).convertImage(
+      context,
+      context.inputs[0]?.format ?? "",
+      { keepFormat: true, enlarge },
+    );
+}
+
+function resizeProblem(options: RunContext["options"]): string | undefined {
+  const sized = options.width !== undefined || options.height !== undefined;
+  if (options.scale !== undefined && sized) {
+    return "--scale can't be used with --width or --height. Choose one way to size the image.";
+  }
+  if (options.scale === undefined && !sized) {
+    return "Give --width, --height or --scale to say how big the image should be.";
+  }
+  return undefined;
 }
 
 function targetEncodingOptions(target: string): OptionDefinition[] {
@@ -296,6 +317,8 @@ function toolModes(): Mode[] {
       output: "same",
       outputSuffix: "resized",
       options: [width, height, resizeScale, fit, noEnlarge],
+      checkOptions: resizeProblem,
+      run: convertKeepingFormat(false),
       description: "Change an image's width and height",
       examples: [
         "konvertoj -m resize photo.jpg --width 1200",
@@ -308,6 +331,7 @@ function toolModes(): Mode[] {
       output: "same",
       outputSuffix: "enlarged",
       options: [enlargeScale],
+      run: convertKeepingFormat(true),
       description: "Upscale an image to 2x or 4x its size",
       examples: [
         "konvertoj -m enlarge icon.png",
