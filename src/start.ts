@@ -45,6 +45,30 @@ function writerFor(stream: NodeJS.WriteStream): (text: string) => void {
   };
 }
 
+async function askOnTerminal(
+  question: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const { createInterface } = await import("node:readline/promises");
+  const reader = createInterface({
+    input: process.stdin,
+    output: process.stderr,
+  });
+  const stopped = new AbortController();
+  reader.on("SIGINT", () => stopped.abort());
+  signal?.addEventListener("abort", () => stopped.abort());
+  try {
+    return await reader.question(question, { signal: stopped.signal });
+  } catch (error) {
+    if (stopped.signal.aborted) {
+      process.emit("SIGINT");
+    }
+    throw error;
+  } finally {
+    reader.close();
+  }
+}
+
 export async function start(
   args: string[],
   extraModes: Mode[] = [],
@@ -60,9 +84,7 @@ export async function start(
       return;
     }
     controller.abort();
-    process.stderr.write(
-      "\nStopping after the files already in progress. Press Ctrl+C again to stop at once.\n",
-    );
+    process.stderr.write("\nStopping. Press Ctrl+C again to stop at once.\n");
   };
   process.on("SIGINT", onInterrupt);
   try {
@@ -77,7 +99,13 @@ export async function start(
           err: coloursAllowed(process.stderr.isTTY),
         },
       },
-      { extraModes, signal: controller.signal },
+      {
+        extraModes,
+        signal: controller.signal,
+        interactive:
+          process.stdin.isTTY === true && process.stderr.isTTY === true,
+        ask: askOnTerminal,
+      },
     );
   } catch (error) {
     reportUnexpected(error, args);

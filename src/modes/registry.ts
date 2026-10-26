@@ -77,6 +77,7 @@ export interface Mode {
   outputSuffix?: string;
   combinesInputs?: true;
   multipleOutputs?: true;
+  usesFfmpeg?: true;
   checkOptions?: (options: RunContext["options"]) => string | undefined;
   run?: (context: RunContext) => Promise<{ skipped: string } | void>;
 }
@@ -94,6 +95,7 @@ export interface RunContext {
   note(message: string): void;
   show(section: Section): void;
   colours: boolean;
+  ffmpeg?: string;
   signal: AbortSignal;
 }
 
@@ -376,6 +378,13 @@ function gifModes(): Mode[] {
 }
 
 function videoAndAudioModes(): Mode[] {
+  return videoAndAudioDefinitions().map((mode) => ({
+    ...mode,
+    usesFfmpeg: true as const,
+  }));
+}
+
+function videoAndAudioDefinitions(): Mode[] {
   const toMp4Options = [videoQuality, resolution, mute];
   const toMp4 = videoInputs
     .filter((from) => from !== "mp4")

@@ -24,6 +24,11 @@ const helpOptions: OptionDefinition[] = [
   },
   { name: "version", kind: "flag", description: "Show the version" },
   { name: "list-modes", kind: "flag", description: "List every mode" },
+  {
+    name: "install-video",
+    kind: "flag",
+    description: "Download the video and audio add-on (FFmpeg) in advance",
+  },
 ];
 
 const mainExampleModes = ["heictojpg", "compress", "jpgtopdf", "movtomp4"];

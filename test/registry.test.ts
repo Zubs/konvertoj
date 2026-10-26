@@ -253,3 +253,11 @@ describe("mode registry", () => {
     expect(findMode("heictojpg")?.combinesInputs).toBeUndefined();
   });
 });
+
+describe("modes that need FFmpeg", () => {
+  it("are exactly the Video & Audio modes", () => {
+    const marked = modes.filter((mode) => mode.usesFfmpeg);
+    expect(marked).toHaveLength(41);
+    expect(marked.every((mode) => mode.group === "Video & Audio")).toBe(true);
+  });
+});

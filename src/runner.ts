@@ -15,6 +15,7 @@ export interface BatchSettings {
   cwd: string;
   signal: AbortSignal;
   colours?: boolean;
+  ffmpeg?: string;
 }
 
 const unexpectedProblem =
@@ -126,6 +127,7 @@ export async function runBatch(
           shown = section;
         },
         colours: settings.colours === true,
+        ffmpeg: settings.ffmpeg,
         signal: settings.signal,
       });
       if (shown && !outcome?.skipped) {
