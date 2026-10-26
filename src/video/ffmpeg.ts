@@ -2,6 +2,7 @@ import { execFile, spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { createWriteStream, existsSync } from "node:fs";
 import { chmod, mkdir, open, rename, rm, stat, utimes } from "node:fs/promises";
+import http from "node:http";
 import { homedir } from "node:os";
 import path from "node:path";
 import { Readable, Transform } from "node:stream";
@@ -40,6 +41,12 @@ const stallTimeout = 30_000;
 const progressRedraw = 100;
 const installHelp =
   "install FFmpeg yourself from https://ffmpeg.org/download.html";
+const proxySettings = [
+  "https_proxy",
+  "HTTPS_PROXY",
+  "http_proxy",
+  "HTTP_PROXY",
+];
 
 const builds: Record<string, [number, string]> = {
   "darwin-arm64": [
@@ -221,12 +228,14 @@ async function takeLock(
 export async function installFfmpeg({
   source,
   final,
+  environment = process.env,
   onProgress = () => {},
   onWaiting = () => {},
   signal,
 }: {
   source: DownloadSource;
   final: string;
+  environment?: NodeJS.ProcessEnv;
   onProgress?: (received: number, total: number) => void;
   onWaiting?: () => void;
   signal?: AbortSignal;
@@ -252,7 +261,7 @@ export async function installFfmpeg({
     if (existsSync(final)) {
       return final;
     }
-    await download(source, temporary, onProgress, signal);
+    await download(source, temporary, environment, onProgress, signal);
     await chmod(temporary, 0o755);
     await rename(temporary, final);
     return final;
@@ -265,9 +274,66 @@ export async function installFfmpeg({
   }
 }
 
+type SetGlobalProxy = (environment: NodeJS.ProcessEnv) => () => void;
+
+function useProxy(environment: NodeJS.ProcessEnv): () => void {
+  const setGlobalProxy = (
+    http as unknown as { setGlobalProxyFromEnv?: SetGlobalProxy }
+  ).setGlobalProxyFromEnv;
+  if (!setGlobalProxy) {
+    return () => {};
+  }
+  try {
+    return setGlobalProxy(environment);
+  } catch (error) {
+    const name = proxySettings.find((setting) => {
+      const value = environment[setting];
+      return value && !(URL.canParse(value) && /^https?:\/\//i.test(value));
+    });
+    throw new UserError(
+      name
+        ? `${name} is set to ${environment[name]}, which isn't a valid proxy address (it should look like http://proxy.example.com:8080). Fix or unset it.`
+        : "The proxy settings couldn't be used. Check HTTPS_PROXY, HTTP_PROXY and NO_PROXY, or unset them.",
+      { cause: error },
+    );
+  }
+}
+
+function proxyAdvice(environment: NodeJS.ProcessEnv): string {
+  const hasRuntimeSupport =
+    "setGlobalProxyFromEnv" in (http as unknown as object);
+  const proxySet = proxySettings.some((setting) => environment[setting]);
+  if (hasRuntimeSupport || !proxySet || environment.NODE_USE_ENV_PROXY) {
+    return "";
+  }
+  return " konvertoj found a proxy setting, but this Node.js version only uses it with NODE_USE_ENV_PROXY=1 (Node.js 22.21 or newer). Set it, or update Node.js.";
+}
+
 async function download(
   source: DownloadSource,
   temporary: string,
+  environment: NodeJS.ProcessEnv,
+  onProgress: (received: number, total: number) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const restoreProxy = useProxy(environment);
+  try {
+    await downloadThroughProxy(
+      source,
+      temporary,
+      environment,
+      onProgress,
+      signal,
+    );
+  } finally {
+    restoreProxy();
+  }
+}
+
+async function downloadThroughProxy(
+  source: DownloadSource,
+  temporary: string,
+  environment: NodeJS.ProcessEnv,
   onProgress: (received: number, total: number) => void,
   signal?: AbortSignal,
 ): Promise<void> {
@@ -283,7 +349,7 @@ async function download(
       throw error;
     }
     throw new UserError(
-      `konvertoj couldn't connect to download the video add-on. Check your internet connection, then run konvertoj --install-video, or ${installHelp}.`,
+      `konvertoj couldn't connect to download the video add-on. Check your internet connection, then run konvertoj --install-video, or ${installHelp}.${proxyAdvice(environment)}`,
       { cause: error },
     );
   }
@@ -385,6 +451,7 @@ export async function ensureFfmpeg(
   const saved = await installFfmpeg({
     source,
     final: cachedPath(settings),
+    environment: settings.environment,
     onProgress: showProgress ? progressLine(settings.err) : undefined,
     onWaiting: () =>
       settings.err(

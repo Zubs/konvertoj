@@ -1,5 +1,8 @@
 import { spawnSync } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { makeFolder } from "./support/folders.js";
 
 const allowedRootFiles = ["package.json", "README.md", "LICENSE"];
 
@@ -34,5 +37,37 @@ describe("published package", () => {
         filePath,
       ).toBe(true);
     }
+  });
+});
+
+describe("install-size check", () => {
+  function checkSize(folder: string, ...args: string[]) {
+    return spawnSync(
+      process.execPath,
+      ["scripts/install-size.js", folder, ...args],
+      { encoding: "utf8" },
+    );
+  }
+
+  function installFolder(): string {
+    const folder = makeFolder();
+    const packageFolder = path.join(folder, "node_modules", "dependency");
+    mkdirSync(packageFolder, { recursive: true });
+    writeFileSync(path.join(packageFolder, "index.js"), "x".repeat(300_000));
+    return folder;
+  }
+
+  it("passes within the budget and prints the size", () => {
+    const result = checkSize(installFolder());
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Installed size: 0.3 MB (budget 150 MB)");
+  });
+
+  it("fails over the budget, naming the size and the budget", () => {
+    const result = checkSize(installFolder(), "--budget", "0.1");
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "Installed size 0.3 MB is over the budget of 0.1 MB.",
+    );
   });
 });

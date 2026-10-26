@@ -44,3 +44,51 @@ jobs:
           cat stderr.txt
           test "$exit_code" -eq 1
           grep -q "konvertoj needs Node.js 22 or newer" stderr.txt
+
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          [
+            windows-latest,
+            macos-15-intel,
+            macos-latest,
+            ubuntu-latest,
+            ubuntu-24.04-arm,
+          ]
+        node: [22, 24, latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Proxy tests on this Node.js version
+        run: npx vitest run test/ffmpeg.test.ts
+      - name: Pack and install in an empty folder
+        run: |
+          npm pack --pack-destination "$RUNNER_TEMP"
+          tarball="$RUNNER_TEMP/konvertoj-$(node -p "require('./package.json').version").tgz"
+          echo "TARBALL=$tarball" >> "$GITHUB_ENV"
+          mkdir "$RUNNER_TEMP/install"
+          cd "$RUNNER_TEMP/install"
+          npm init -y
+          npm install --no-audit --no-fund "$tarball"
+      - name: npx shows the help screen
+        run: |
+          mkdir "$RUNNER_TEMP/npx"
+          cd "$RUNNER_TEMP/npx"
+          npx --yes "$TARBALL" --help > help.txt
+          cat help.txt
+          grep -q "Usage:" help.txt
+      - name: Install size
+        run: node scripts/install-size.js "$RUNNER_TEMP/install"
+      - name: Smoke test
+        run: node scripts/smoke.js "$RUNNER_TEMP/install"

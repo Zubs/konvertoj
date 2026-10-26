@@ -7,8 +7,8 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { createServer, type Server } from "node:http";
-import type { AddressInfo } from "node:net";
+import http, { createServer, type Server } from "node:http";
+import { connect, type AddressInfo, type Socket } from "node:net";
 import path from "node:path";
 import { gzipSync } from "node:zlib";
 import { afterEach, describe, expect, it } from "vitest";
@@ -28,9 +28,12 @@ import { writeImage } from "./support/images.js";
 const projectFolder = process.cwd();
 const onWindows = process.platform === "win32";
 const servers: Server[] = [];
+const tunnels: Socket[] = [];
+const hasRuntimeProxy = "setGlobalProxyFromEnv" in http;
 
 afterEach(async () => {
   process.chdir(projectFolder);
+  tunnels.splice(0).forEach((socket) => socket.destroy());
   await Promise.all(
     servers
       .splice(0)
@@ -80,6 +83,34 @@ async function serve(body: Buffer, { cutShort = false } = {}) {
     url: `http://127.0.0.1:${port}/ffmpeg.gz`,
     requests: () => requests,
   };
+}
+
+async function startProxy({ refuse = false } = {}) {
+  const targets: string[] = [];
+  const server = createServer();
+  server.on("connect", (request, client: Socket, head: Buffer) => {
+    const target = request.url ?? "";
+    targets.push(target);
+    tunnels.push(client);
+    if (refuse) {
+      client.end("HTTP/1.1 502 Bad Gateway\r\n\r\n");
+      return;
+    }
+    const [host = "", port = ""] = target.split(":");
+    const upstream = connect(Number(port), host, () => {
+      client.write("HTTP/1.1 200 Connection Established\r\n\r\n");
+      upstream.write(head);
+      upstream.pipe(client);
+      client.pipe(upstream);
+    });
+    tunnels.push(upstream);
+    upstream.on("error", () => client.destroy());
+    client.on("error", () => upstream.destroy());
+  });
+  servers.push(server);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as AddressInfo;
+  return { url: `http://127.0.0.1:${port}`, targets };
 }
 
 function sourceFor(
@@ -437,5 +468,103 @@ describe.skipIf(onWindows)("downloading the add-on", () => {
     });
     expect(result.exitCode).toBe(0);
     expect(existsSync(path.join(folder, "clip-video.png"))).toBe(true);
+  });
+});
+
+describe("downloading through a proxy", () => {
+  const body = gzipSync("fake ffmpeg");
+  const finalIn = (folder: string) => path.join(folder, "cache", "ffmpeg");
+
+  it.skipIf(!hasRuntimeProxy)(
+    "goes through HTTP_PROXY, unless NO_PROXY excludes the address",
+    async () => {
+      const server = await serve(body);
+      const proxy = await startProxy();
+      const folder = makeFolder();
+      await installFfmpeg({
+        source: sourceFor(server.url, body),
+        final: finalIn(folder),
+        environment: { HTTP_PROXY: proxy.url },
+      });
+      expect(readFileSync(finalIn(folder), "utf8")).toBe("fake ffmpeg");
+      expect(proxy.targets).toEqual([new URL(server.url).host]);
+      const direct = makeFolder();
+      await installFfmpeg({
+        source: sourceFor(server.url, body),
+        final: finalIn(direct),
+        environment: { HTTP_PROXY: proxy.url, NO_PROXY: "127.0.0.1" },
+      });
+      expect(proxy.targets).toHaveLength(1);
+      expect(server.requests()).toBe(2);
+    },
+  );
+
+  it("connects directly without proxy settings", async () => {
+    const server = await serve(body);
+    const proxy = await startProxy();
+    const folder = makeFolder();
+    await installFfmpeg({
+      source: sourceFor(server.url, body),
+      final: finalIn(folder),
+      environment: {},
+    });
+    expect(proxy.targets).toEqual([]);
+    expect(server.requests()).toBe(1);
+  });
+
+  it.skipIf(!hasRuntimeProxy)(
+    "asks HTTPS_PROXY for a tunnel to an https address",
+    async () => {
+      const proxy = await startProxy({ refuse: true });
+      await expect(
+        installFfmpeg({
+          source: sourceFor("https://example.invalid/ffmpeg.gz", body),
+          final: finalIn(makeFolder()),
+          environment: { HTTPS_PROXY: proxy.url },
+        }),
+      ).rejects.toThrow("couldn't connect to download the video add-on");
+      expect(proxy.targets).toEqual(["example.invalid:443"]);
+    },
+  );
+
+  it.skipIf(!hasRuntimeProxy)(
+    "explains a proxy setting that isn't an address",
+    async () => {
+      await expect(
+        installFfmpeg({
+          source: sourceFor("https://example.invalid/ffmpeg.gz", body),
+          final: finalIn(makeFolder()),
+          environment: {
+            HTTPS_PROXY: "http://127.0.0.1:9",
+            HTTP_PROXY: "proxy.corp:8080",
+          },
+        }),
+      ).rejects.toThrow(
+        "HTTP_PROXY is set to proxy.corp:8080, which isn't a valid proxy address (it should look like http://proxy.example.com:8080). Fix or unset it.",
+      );
+    },
+  );
+
+  it("tells older Node.js versions how to use the proxy", async () => {
+    const builtIn = Object.getOwnPropertyDescriptor(
+      http,
+      "setGlobalProxyFromEnv",
+    );
+    Reflect.deleteProperty(http, "setGlobalProxyFromEnv");
+    try {
+      await expect(
+        installFfmpeg({
+          source: sourceFor("http://127.0.0.1:9/ffmpeg.gz", body),
+          final: finalIn(makeFolder()),
+          environment: { HTTPS_PROXY: "http://127.0.0.1:9" },
+        }),
+      ).rejects.toThrow(
+        "konvertoj found a proxy setting, but this Node.js version only uses it with NODE_USE_ENV_PROXY=1 (Node.js 22.21 or newer). Set it, or update Node.js.",
+      );
+    } finally {
+      if (builtIn) {
+        Object.defineProperty(http, "setGlobalProxyFromEnv", builtIn);
+      }
+    }
   });
 });
