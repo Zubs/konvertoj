@@ -88,7 +88,7 @@ jobs:
         run: |
           mkdir "$RUNNER_TEMP/npx"
           cd "$RUNNER_TEMP/npx"
-          npx --yes "$TARBALL" --help > help.txt
+          npm exec --yes --package="$TARBALL" -- konvertoj --help > help.txt 2>&1 || { cat help.txt; exit 1; }
           cat help.txt
           grep -q "Usage:" help.txt
       - name: Install size
