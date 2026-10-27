@@ -42,5 +42,3 @@ jobs:
       - name: Publish
         if: github.event_name == 'push'
         run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
