@@ -44,16 +44,23 @@ async function problemWith(target) {
     if (values.offline) {
       return undefined;
     }
-    try {
-      const response = await globalThis.fetch(target, {
-        headers: { "user-agent": "konvertoj-link-check" },
-        redirect: "follow",
-        signal: globalThis.AbortSignal.timeout(15_000),
-      });
-      return response.ok ? undefined : `answered ${response.status}`;
-    } catch (error) {
-      return `couldn't be reached (${error.message})`;
+    let problem;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await globalThis.fetch(target, {
+          headers: { "user-agent": "konvertoj-link-check" },
+          redirect: "follow",
+          signal: globalThis.AbortSignal.timeout(15_000),
+        });
+        if (response.ok) {
+          return undefined;
+        }
+        problem = `answered ${response.status}`;
+      } catch (error) {
+        problem = `couldn't be reached (${error.message})`;
+      }
     }
+    return problem;
   }
   const file = path.join(path.dirname(readmePath), target.split("#")[0]);
   return existsSync(file) ? undefined : "no such file";

@@ -87,6 +87,7 @@ async function serve(body: Buffer, { cutShort = false } = {}) {
 
 async function startProxy({ refuse = false } = {}) {
   const targets: string[] = [];
+  const direct = new http.Agent();
   const server = createServer((request, response) => {
     const target = new URL(request.url ?? "");
     targets.push(target.host);
@@ -96,7 +97,7 @@ async function startProxy({ refuse = false } = {}) {
     }
     const upstream = http.request(
       target,
-      { method: request.method, headers: request.headers },
+      { method: request.method, headers: request.headers, agent: direct },
       (answer) => {
         response.writeHead(answer.statusCode ?? 502, answer.headers);
         answer.pipe(response);

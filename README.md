@@ -266,7 +266,7 @@ The add-on is checked against a stored checksum and kept in your cache folder:
 
 To use a particular FFmpeg instead, set `KONVERTOJ_FFMPEG_PATH` to its path. Behind a proxy, the download uses the standard `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` settings. This works on its own with Node.js 24.14 or newer; on Node.js 22.21 or newer, also set `NODE_USE_ENV_PROXY=1`.
 
-The add-on is a build of FFmpeg from the [ffmpeg-static](https://github.com/eugeneware/ffmpeg-static) project. FFmpeg is made by the FFmpeg developers, and this build is licensed under the [GNU General Public License](https://www.gnu.org/licenses/gpl-3.0.html). konvertoj doesn't include FFmpeg: it is downloaded separately, only if you agree.
+The add-on is a build of FFmpeg from the [ffmpeg-static](https://github.com/eugeneware/ffmpeg-static) project. FFmpeg is made by the FFmpeg developers, and this build is licensed under the GNU General Public License (see [FFmpeg's licence page](https://ffmpeg.org/legal.html)). konvertoj doesn't include FFmpeg: it is downloaded separately, only if you agree.
 
 ## Exit codes
 
