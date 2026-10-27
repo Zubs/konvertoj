@@ -283,7 +283,7 @@ konvertoj works only on your computer. It never uploads your files, and it colle
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+The source is on [GitHub](https://github.com/Zubs/konvertoj). See [CONTRIBUTING.md](CONTRIBUTING.md) to help, and [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 
 ## Licence
 

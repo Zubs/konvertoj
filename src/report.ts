@@ -1,6 +1,6 @@
-import path from "node:path";
 import { styleText } from "node:util";
 import type { PlannedItem } from "./outputs.js";
+import { displayPath } from "./paths.js";
 
 export interface Output {
   out(text: string): void;
@@ -148,7 +148,7 @@ export class Reporter {
           ? ` and ${otherOutputs} other${otherOutputs === 1 ? "" : "s"}`
           : "";
       const output = item.output
-        ? `${path.relative(this.settings.cwd, item.output)}${others}`
+        ? `${displayPath(this.settings.cwd, item.output)}${others}`
         : "";
       const change = before > 0 ? ` (${formatChange(before, after)})` : "";
       const sizes = `${formatSize(before)} → ${formatSize(after)}${change}`;
@@ -256,7 +256,7 @@ export class Reporter {
 
   private describe(item: PlannedItem): string {
     const [first] = item.inputs;
-    const name = first ? path.relative(this.settings.cwd, first.path) : "";
+    const name = first ? displayPath(this.settings.cwd, first.path) : "";
     const others = item.inputs.length - 1;
     if (others === 0) {
       return name;

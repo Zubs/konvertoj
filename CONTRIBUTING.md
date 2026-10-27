@@ -61,3 +61,14 @@ The demo GIF at the top of the README is recorded with [vhs](https://github.com/
 npm run demo
 npm run docs
 ```
+
+## Releasing
+
+Releases are published to npm by the Release workflow (`.github/workflows/release.yml`), with npm provenance, so every version can be traced to the commit and workflow that built it. Nothing is ever published from a computer.
+
+1. Make the last commit for the release: the version in `package.json`, and the date on its CHANGELOG heading.
+2. Check CI is green on every system.
+3. Run the Release workflow by hand (Actions → Release → Run workflow). It runs every check and `npm publish --dry-run`, and publishes nothing. Once a version is on npm, the dry run for that same version fails, so raise the version first.
+4. Push a tag matching the version: `git tag v1.0.0 && git push origin v1.0.0`. The workflow checks the tag matches `package.json`, runs every check again and publishes.
+
+The first release needs an npm token with "Bypass two-factor authentication" turned on, saved as the `NPM_TOKEN` secret. After that, npm's trusted publishing for this repository and `release.yml` replaces the token. The steps for 1.0.0 are in [docs/launch-checklist.md](docs/launch-checklist.md).

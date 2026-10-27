@@ -4,6 +4,7 @@ import { open, stat } from "node:fs/promises";
 import path from "node:path";
 import { UserError } from "./errors.js";
 import { commandShape } from "./help.js";
+import { displayPath } from "./paths.js";
 
 export interface InputFile {
   path: string;
@@ -148,7 +149,7 @@ export async function resolveInputs(
 
   const warnings = lockedFolders.map(
     (folder) =>
-      `Skipped ${path.relative(options.cwd, folder) || "."} because it can't be opened.`,
+      `Skipped ${displayPath(options.cwd, folder)} because it can't be opened.`,
   );
   return { inputs, warnings };
 }

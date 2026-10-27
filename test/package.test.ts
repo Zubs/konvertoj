@@ -1,12 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { makeFolder } from "./support/folders.js";
 
 const allowedRootFiles = ["package.json", "README.md", "LICENSE"];
 
-function packedFilePaths(): string[] {
+function packed(): { name: string; version: string; files: string[] } {
   const npmPath = process.env.npm_execpath;
   if (!npmPath) {
     throw new Error("npm_execpath is not set: run this through npm test");
@@ -20,14 +20,41 @@ function packedFilePaths(): string[] {
   );
   expect(result.status, result.stderr).toBe(0);
   const [packResult] = JSON.parse(result.stdout) as [
-    { files: { path: string }[] },
+    { name: string; version: string; files: { path: string }[] },
   ];
-  return packResult.files.map((file) => file.path);
+  return {
+    name: packResult.name,
+    version: packResult.version,
+    files: packResult.files.map((file) => file.path),
+  };
 }
 
 describe("published package", () => {
+  it("is konvertoj 1.0.0", () => {
+    const { name, version } = packed();
+    expect(name).toBe("konvertoj");
+    expect(version).toBe("1.0.0");
+  });
+
+  it("has the details npm shows, and publishes publicly with provenance", () => {
+    const manifest = JSON.parse(readFileSync("package.json", "utf8"));
+    expect(manifest.description).toBeTruthy();
+    expect(manifest.keywords).toEqual(
+      expect.arrayContaining(["heic", "pdf", "cli"]),
+    );
+    expect(manifest.repository.url).toBe(
+      "git+https://github.com/Zubs/konvertoj.git",
+    );
+    expect(manifest.homepage).toBe("https://github.com/Zubs/konvertoj#readme");
+    expect(manifest.bugs.url).toBe("https://github.com/Zubs/konvertoj/issues");
+    expect(manifest.publishConfig).toEqual({
+      access: "public",
+      provenance: true,
+    });
+  });
+
   it("contains only dist, README.md, LICENSE and package.json", () => {
-    const paths = packedFilePaths();
+    const paths = packed().files;
     expect(paths).toEqual(
       expect.arrayContaining([...allowedRootFiles, "dist/cli.js"]),
     );
