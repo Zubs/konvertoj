@@ -3,6 +3,7 @@
 Convert and edit images, PDFs and a few common video and audio files from the command line, on your own computer. Nothing is uploaded.
 
 <!-- demo:start -->
+![konvertoj converting photos in a terminal](docs/demo.gif)
 <!-- demo:end -->
 
 ## What it does
