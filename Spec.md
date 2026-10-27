@@ -1,7 +1,7 @@
 # konvertoj — Spec
 
 **Package:** [`konvertoj`](https://www.npmjs.com/package/konvertoj) on npm
-**Stage:** Pre-release (published once everything in this spec is done, as v1)
+**Stage:** Released (v1.0.0 on npm)
 
 ---
 

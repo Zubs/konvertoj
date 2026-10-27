@@ -27,7 +27,7 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - [x] 17. GIF (`togif`)
 - [x] 18. Cross-platform packaging
 - [x] 19. Documentation
-- [ ] 20. Launch readiness
+- [x] 20. Launch readiness
 
 ---
 
