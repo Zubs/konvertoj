@@ -88,7 +88,9 @@ export function planOutputs(
     for (let number = 1; ; number++) {
       const isFree =
         !taken.has(takenKey(candidate)) &&
-        (options.overwrite || !fs.existsSync(candidate));
+        (options.overwrite ||
+          mode.multipleOutputs === true ||
+          !fs.existsSync(candidate));
       if (isFree) {
         taken.add(takenKey(candidate));
         return candidate;
@@ -130,16 +132,35 @@ export function planOutputs(
   const targetIsFolder =
     target !== undefined &&
     (inputs.length > 1 ||
+      mode.multipleOutputs === true ||
       inputs.some((input) => input.base) ||
       isFolder(target) ||
       /[/\\]$/.test(options.output ?? ""));
   if (targetIsFolder && fs.existsSync(target) && !isFolder(target)) {
     throw new UserError(
-      `-o ${options.output} is a file, but -o must be a folder when there are several inputs. Choose a folder name, e.g. -o converted.`,
+      `-o ${options.output} is a file, but -o must be a folder when there are several inputs or pages. Choose a folder name, e.g. -o converted.`,
     );
   }
 
-  const items = inputs.map((input): PlannedItem => {
+  const alreadyInOutputFormat = (input: InputFile) =>
+    mode.output !== "same" &&
+    extensionsFor(mode.output).includes(
+      path.extname(input.path).slice(1).toLowerCase(),
+    );
+  const claimingOrder = [
+    ...inputs.filter((input) => !alreadyInOutputFormat(input)),
+    ...inputs.filter(alreadyInOutputFormat),
+  ];
+  const planned = new Map<InputFile, PlannedItem>();
+  for (const input of claimingOrder) {
+    planned.set(input, planItem(input));
+  }
+  const items = inputs.map(
+    (input) => planned.get(input) ?? { inputs: [input] },
+  );
+  return { items, warnings };
+
+  function planItem(input: InputFile): PlannedItem {
     if (input.unreadable) {
       return { inputs: [input] };
     }
@@ -154,6 +175,5 @@ export function planOutputs(
       wanted = withExtension(target, mode, input, warnings);
     }
     return { inputs: [input], output: claim(wanted) };
-  });
-  return { items, warnings };
+  }
 }

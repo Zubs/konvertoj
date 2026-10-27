@@ -4,6 +4,8 @@ This document breaks down every v1 feature from [Spec.md](Spec.md), in the order
 
 Tick a feature in the list below when everything under **How it works** is built and all its **Tests** pass.
 
+Decisions taken outside this plan are listed, with their reasons, in [Decisions.md](Decisions.md).
+
 Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), **O**ne (a single item), **M**any (several items), **B**oundaries (limits and edge values), **I**nterfaces (how it connects to the command line and other features), **E**xceptions (errors and bad input), then a **S**imple real-world scenario last.
 
 ## Progress
@@ -12,21 +14,21 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - [x] 2. Command-line basics
 - [x] 3. Inputs and output naming
 - [x] 4. Batch runner and reporting
-- [ ] 5. Format detection
-- [ ] 6. Core image conversion
-- [ ] 7. Other image formats
-- [ ] 8. Metadata and strip
-- [ ] 9. Resize and enlarge
-- [ ] 10. Compress
-- [ ] 11. Crop, rotate and flip
-- [ ] 12. Info and colour picker
-- [ ] 13. PDF
-- [ ] 14. FFmpeg add-on
-- [ ] 15. Video to MP4
-- [ ] 16. Audio from video
-- [ ] 17. GIF (`togif`)
-- [ ] 18. Cross-platform packaging
-- [ ] 19. Documentation
+- [x] 5. Format detection
+- [x] 6. Core image conversion
+- [x] 7. Other image formats
+- [x] 8. Metadata and strip
+- [x] 9. Resize and enlarge
+- [x] 10. Compress
+- [x] 11. Crop, rotate and flip
+- [x] 12. Info and colour picker
+- [x] 13. PDF
+- [x] 14. FFmpeg add-on
+- [x] 15. Video to MP4
+- [x] 16. Audio from video
+- [x] 17. GIF (`togif`)
+- [x] 18. Cross-platform packaging
+- [x] 19. Documentation
 - [ ] 20. Launch readiness
 
 ---

@@ -7,7 +7,7 @@ Defines how konvertoj runs a mode's work over every planned file: safely, a few 
 ## Requirements
 
 ### Requirement: Running every planned item
-For a mode that can run, konvertoj SHALL first prepare the output folders, then process every planned item and save each result through a temporary file. A mode that combines its inputs SHALL be one item. A mode that can't run yet SHALL still fail with "<mode> isn't available yet." before any folder is created.
+For a mode that can run, konvertoj SHALL first prepare the output folders, then process every planned item and save each result through a temporary file. Before a mode's work starts on an item, every input of the item SHALL pass the input format checks, and the work SHALL be given each input's detected format. A mode that combines its inputs SHALL be one item. A mode that can't run yet SHALL still fail with "<mode> isn't available yet." before any folder is created.
 
 #### Scenario: One file
 - **WHEN** a runnable mode is given one readable file
@@ -17,8 +17,16 @@ For a mode that can run, konvertoj SHALL first prepare the output folders, then 
 - **WHEN** a runnable mode is given ten readable files
 - **THEN** all ten outputs are written
 
+#### Scenario: Input check before work
+- **WHEN** a runnable image mode is given a file that fails the input checks
+- **THEN** the mode's work never starts for that file, nothing is written for it, and it is reported as failed
+
 ### Requirement: Limited parallel work
-konvertoj SHALL process at most `min(4, number of CPU cores)` items at the same time, and at least one.
+konvertoj SHALL process at most `min(4, number of CPU cores)` items at the same time, and at least one. Modes that use FFmpeg SHALL process one item at a time, because FFmpeg already uses every core.
+
+#### Scenario: Videos one at a time
+- **WHEN** a folder of MOV files is converted with `movtomp4`
+- **THEN** only one video is being converted at any moment
 
 #### Scenario: Many cores
 - **WHEN** twenty files are processed on a machine with 16 cores

@@ -32,7 +32,7 @@ The test suite SHALL run every test under `test/`, and SHALL include at least on
 - **THEN** at least one test runs and all tests pass
 
 ### Requirement: Continuous integration on three systems
-For every push and pull request, CI SHALL run `npm run check`, `npm test` and `npm run build` on Ubuntu, macOS and Windows. A failure on any one system SHALL fail the run, and a failure on one system SHALL NOT cancel the others.
+For every push and pull request, CI SHALL run `npm run check`, `npm test` and `npm run build` on Ubuntu, macOS and Windows. Before the tests, it SHALL build konvertoj and install the video add-on with `konvertoj --install-video`, so video tests run with the real downloaded FFmpeg on every system. A failure on any one system SHALL fail the run, and a failure on one system SHALL NOT cancel the others.
 
 #### Scenario: All systems pass
 - **WHEN** a commit is pushed and every check passes on all three systems
@@ -41,3 +41,14 @@ For every push and pull request, CI SHALL run `npm run check`, `npm test` and `n
 #### Scenario: One system fails
 - **WHEN** a check fails on Windows only
 - **THEN** the CI run fails, and the Ubuntu and macOS jobs still run to completion
+
+### Requirement: Packaging checks in CI
+For every push and pull request, CI SHALL build konvertoj, pack it with `npm pack`, install the tarball into an empty folder outside the checkout, run the install-size check and run the smoke test, on Windows x64, macOS Intel, macOS Apple Silicon, Linux x64 and Linux arm64, each with Node.js 22, 24 and the latest version. A failure in any combination SHALL fail the run without cancelling the others.
+
+#### Scenario: Every combination passes
+- **WHEN** the packed release works everywhere
+- **THEN** all fifteen packaging jobs succeed
+
+#### Scenario: One combination fails
+- **WHEN** the smoke test fails on one system and Node.js version
+- **THEN** the CI run fails, and the other packaging jobs still run to completion

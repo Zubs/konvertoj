@@ -19,8 +19,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
-      - run: npm test
+      - name: Check the README's links
+        if: runner.os == 'Linux'
+        run: node scripts/check-links.js
       - run: npm run build
+      - name: Install the video add-on
+        run: node dist/cli.js --install-video
+      - run: npm test
 
   old-node:
     runs-on: ubuntu-latest
@@ -42,3 +47,73 @@ jobs:
           cat stderr.txt
           test "$exit_code" -eq 1
           grep -q "konvertoj needs Node.js 22 or newer" stderr.txt
+
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          [
+            windows-latest,
+            macos-15-intel,
+            macos-latest,
+            ubuntu-latest,
+            ubuntu-24.04-arm,
+          ]
+        node: [22, 24, latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Proxy tests on this Node.js version
+        run: npx vitest run test/ffmpeg.test.ts
+      - name: Pack and install in an empty folder
+        run: |
+          npm pack --pack-destination "$RUNNER_TEMP"
+          tarball="$RUNNER_TEMP/konvertoj-$(node -p "require('./package.json').version").tgz"
+          echo "TARBALL=$tarball" >> "$GITHUB_ENV"
+          mkdir "$RUNNER_TEMP/install"
+          cd "$RUNNER_TEMP/install"
+          npm init -y
+          npm install --no-audit --no-fund "$tarball"
+      - name: npx shows the help screen
+        run: |
+          mkdir "$RUNNER_TEMP/npx"
+          cd "$RUNNER_TEMP/npx"
+          npm exec --yes --package="$TARBALL" -- konvertoj --help > help.txt 2>&1 || { cat help.txt; exit 1; }
+          cat help.txt
+          grep -q "Usage:" help.txt
+      - name: Install size
+        run: node scripts/install-size.js "$RUNNER_TEMP/install"
+      - name: Smoke test
+        run: node scripts/smoke.js "$RUNNER_TEMP/install"
+
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: charmbracelet/vhs-action@v2
+        with:
+          path: docs/demo.tape
+      - name: The demo shows real output
+        run: |
+          test "$(head -c 4 docs/demo.gif)" = "GIF8"
+          grep -q "1 converted, 0 failed" docs/demo.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: demo
+          path: docs/demo.gif

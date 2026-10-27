@@ -23,6 +23,23 @@ function launch(cwd: string, args: string[]) {
 }
 
 describe("launched konvertoj", () => {
+  it("keeps working quietly when its output pipe is closed early", async () => {
+    const names = Array.from({ length: 20 }, (_, index) => `slow${index}.txt`);
+    const cwd = folderWith(names);
+    const child = spawn(process.execPath, [launcher, "-m", "copy", "."], {
+      cwd,
+    });
+    child.stdout.destroy();
+    let stderr = "";
+    child.stderr.on("data", (chunk) => (stderr += chunk));
+    const exitCode = await new Promise((resolve) => child.on("close", resolve));
+    expect(stderr).not.toContain("EPIPE");
+    expect(exitCode).toBe(0);
+    expect(
+      readdirSync(cwd).filter((name) => name.includes("-copy")),
+    ).toHaveLength(20);
+  });
+
   it("writes plain lines with no colour codes or progress bar when piped", () => {
     const cwd = folderWith(["a.txt", "b.txt", "fail.txt"]);
     const result = launch(cwd, ["-m", "copy", "a.txt", "b.txt", "fail.txt"]);
@@ -100,6 +117,48 @@ describe("launched konvertoj", () => {
         [],
       );
       expect(existsSync(path.join(cwd, "out", "1-copy.txt"))).toBe(true);
+    },
+  );
+});
+
+describe("pressing Ctrl+C twice", () => {
+  it.skipIf(process.platform === "win32")(
+    "stops at once, leaving no half-written files",
+    async () => {
+      const files = Array.from(
+        { length: 12 },
+        (_, index) => `slow${index + 1}.txt`,
+      );
+      const cwd = folderWith(files);
+      const child = spawn(
+        process.execPath,
+        [launcher, "-m", "copy", ".", "-o", "out"],
+        { cwd },
+      );
+      let stderr = "";
+      child.stderr.setEncoding("utf8");
+      child.stderr.on("data", (chunk: string) => {
+        stderr += chunk;
+        if (stderr.includes("Press Ctrl+C again")) {
+          child.kill("SIGINT");
+        }
+      });
+      setTimeout(() => child.kill("SIGINT"), 150);
+      const startedAt = Date.now();
+      const [code, signal] = await new Promise<[number | null, string | null]>(
+        (resolve) =>
+          child.on("close", (exitCode, exitSignal) =>
+            resolve([exitCode, exitSignal]),
+          ),
+      );
+      expect(code === 130 || signal === "SIGINT").toBe(true);
+      expect(Date.now() - startedAt).toBeLessThan(2000);
+      const outputs = existsSync(path.join(cwd, "out"))
+        ? readdirSync(path.join(cwd, "out"))
+        : [];
+      expect(outputs.filter((name) => name.includes("konvertoj-tmp"))).toEqual(
+        [],
+      );
     },
   );
 });

@@ -30,6 +30,45 @@ function reportUnexpected(error: unknown, args: string[]): void {
   }
 }
 
+function writerFor(stream: NodeJS.WriteStream): (text: string) => void {
+  let closed = false;
+  stream.on("error", (error: NodeJS.ErrnoException) => {
+    if (error.code !== "EPIPE") {
+      throw error;
+    }
+    closed = true;
+  });
+  return (text) => {
+    if (!closed) {
+      stream.write(text);
+    }
+  };
+}
+
+async function askOnTerminal(
+  question: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const { createInterface } = await import("node:readline/promises");
+  const reader = createInterface({
+    input: process.stdin,
+    output: process.stderr,
+  });
+  const stopped = new AbortController();
+  reader.on("SIGINT", () => stopped.abort());
+  signal?.addEventListener("abort", () => stopped.abort());
+  try {
+    return await reader.question(question, { signal: stopped.signal });
+  } catch (error) {
+    if (stopped.signal.aborted) {
+      process.emit("SIGINT");
+    }
+    throw error;
+  } finally {
+    reader.close();
+  }
+}
+
 export async function start(
   args: string[],
   extraModes: Mode[] = [],
@@ -40,24 +79,33 @@ export async function start(
       for (const file of pendingTemporaryFiles) {
         rmSync(file, { force: true });
       }
-      process.exit(130);
+      process.off("SIGINT", onInterrupt);
+      process.kill(process.pid, "SIGINT");
+      return;
     }
     controller.abort();
+    process.stderr.write("\nStopping. Press Ctrl+C again to stop at once.\n");
   };
   process.on("SIGINT", onInterrupt);
   try {
     process.exitCode = await main(
       args,
       {
-        out: (text) => process.stdout.write(text),
-        err: (text) => process.stderr.write(text),
+        out: writerFor(process.stdout),
+        err: writerFor(process.stderr),
         errIsTerminal: process.stderr.isTTY === true,
         colours: {
           out: coloursAllowed(process.stdout.isTTY),
           err: coloursAllowed(process.stderr.isTTY),
         },
       },
-      { extraModes, signal: controller.signal },
+      {
+        extraModes,
+        signal: controller.signal,
+        interactive:
+          process.stdin.isTTY === true && process.stderr.isTTY === true,
+        ask: askOnTerminal,
+      },
     );
   } catch (error) {
     reportUnexpected(error, args);

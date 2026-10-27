@@ -39,3 +39,9 @@ describe("help text", () => {
     expect(help).toContain("  konvertoj -m heictojpg ");
   });
 });
+
+describe("install-video in the help", () => {
+  it("is listed on the main help screen", () => {
+    expect(mainHelp()).toContain("--install-video");
+  });
+});

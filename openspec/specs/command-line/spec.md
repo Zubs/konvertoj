@@ -98,7 +98,7 @@ An option that exists for other modes but not the chosen one SHALL fail with exi
 - **THEN** it fails with exit code `1` and a plain-English message saying `--quality` needs a value, or `--overwrite` doesn't take one
 
 ### Requirement: Option values are checked
-A value outside its option's declared word list or range SHALL fail with exit code `1` before the mode runs. The message SHALL name the option, the value given, and the allowed words or range. Word matching SHALL ignore letter case. Options without a declared rule SHALL pass through unchecked. Option values SHALL be checked before inputs, so a wrong value is reported even when the inputs are wrong too.
+A value outside its option's declared word list, range, colour rule, size list rule or pattern SHALL fail with exit code `1` before the mode runs. The message SHALL name the option, the value given, and the allowed words, range or kind of value. Word matching SHALL ignore letter case. Options without a declared rule SHALL pass through unchecked. Option values SHALL be checked before inputs, so a wrong value is reported even when the inputs are wrong too.
 
 #### Scenario: Word not allowed
 - **WHEN** a user runs `konvertoj -m resize photo.jpg --fit banana`
@@ -114,7 +114,7 @@ A value outside its option's declared word list or range SHALL fail with exit co
 
 #### Scenario: Valid values pass
 - **WHEN** a user runs `-m heictojpg photo.heic --quality 1`, `--quality 100`, or `-m movtomp4 clip.mov --quality HIGH`, with those files present
-- **THEN** none fails an option check, and each reaches the "isn't available yet" message
+- **THEN** none fails an option check
 
 #### Scenario: Same name, different rule
 - **WHEN** a user runs `-m movtomp4 clip.mov --quality 80`
@@ -124,9 +124,21 @@ A value outside its option's declared word list or range SHALL fail with exit co
 - **WHEN** a user runs `-m rotate photo.jpg --angle -90`
 - **THEN** no option check fails, because `--angle` allows any number
 
+#### Scenario: Colour not recognised
+- **WHEN** a user runs `-m pngtojpg logo.png --background banana`
+- **THEN** it fails with exit code `1`, naming `--background` and `banana` and giving examples such as `white`, `#ff8800` and `rgb(255,136,0)`, and no file is written
+
+#### Scenario: Colours accepted
+- **WHEN** a user runs `-m pngtojpg logo.png` with `--background red`, `--background #f80`, `--background #ff8800` or `--background rgb(255, 136, 0)`
+- **THEN** no option check fails
+
+#### Scenario: Icon sizes
+- **WHEN** a user runs `-m pngtoico logo.png` with `--sizes 0`, `--sizes 257`, `--sizes abc` or `--sizes 16,,32`
+- **THEN** each fails with exit code `1`, saying `--sizes` must be whole numbers from 1 to 256 separated by commas
+
 #### Scenario: Unchecked values pass through
-- **WHEN** a user runs `-m heictojpg photo.heic --background banana`
-- **THEN** no option check fails, because `--background` has no declared rule (colours are checked by feature 6)
+- **WHEN** a user runs `-m pngtojpg logo.png -o "my banana"`
+- **THEN** no option check fails, because `-o` takes any name and has no declared rule
 
 #### Scenario: Option checked before inputs
 - **WHEN** a user runs `-m heictojpg missing.heic --quality 101` and `missing.heic` doesn't exist
@@ -155,16 +167,16 @@ A mode name asking to create HEIC or SVG (`<format>toheic`, `toheic`, `<format>t
 A valid command for a registered mode whose work isn't built yet SHALL fail with exit code `1` and say `<mode> isn't available yet.` This SHALL happen after its inputs have been found and its outputs planned, so input mistakes are reported first, and SHALL NOT create any folders. `--dry-run` SHALL still print the plan and exit with `0`.
 
 #### Scenario: Running an unbuilt mode
-- **WHEN** a user runs `konvertoj -m heictojpg photo.heic` before HEIC conversion exists, and `photo.heic` exists
-- **THEN** it fails with exit code `1` and "heictojpg isn't available yet."
+- **WHEN** a test-only mode without a `run` is used on an existing file
+- **THEN** it fails with exit code `1` and "<mode> isn't available yet."
 
 #### Scenario: Input mistakes come first
-- **WHEN** a user runs `konvertoj -m heictojpg missing.heic` and the file doesn't exist
-- **THEN** it fails, naming `missing.heic`, without mentioning that the mode isn't available
+- **WHEN** the same test-only mode is given a file that doesn't exist
+- **THEN** it fails, naming the file, without mentioning that the mode isn't available
 
 #### Scenario: Dry run of an unbuilt mode
-- **WHEN** a user runs `konvertoj -m heictojpg photo.heic --dry-run`
-- **THEN** it prints `photo.heic → photo.jpg` and exits with `0`
+- **WHEN** the same test-only mode is run with `--dry-run`
+- **THEN** it prints the planned output and exits with `0`
 
 ### Requirement: Errors are for people
 Every command-line error SHALL go to standard error as a plain-English message without a stack trace, and SHALL say how to fix the problem. An unexpected error anywhere in konvertoj SHALL also be shown as a plain-English message that suggests running again with `--verbose`, with exit code `1`. Its technical details and stack trace SHALL appear only with `--verbose`.
@@ -187,3 +199,43 @@ Every command-line error SHALL go to standard error as a plain-English message w
 #### Scenario: No heavy modules
 - **WHEN** `konvertoj --help` runs
 - **THEN** only konvertoj's own modules and Node.js built-ins are loaded
+
+### Requirement: Mode option checks
+A mode MAY declare rules that look at several of its options together, such as a missing required choice or two options that conflict. A broken rule SHALL fail with exit code `1` and a plain-English message, after the option value checks and before any input is read or any folder is created.
+
+#### Scenario: Conflicting options
+- **WHEN** a user runs `konvertoj -m resize photo.jpg --scale 50% --width 800 -o out/`
+- **THEN** it fails with exit code `1`, says `--scale` can't be used with `--width`, and no `out` folder is created
+
+#### Scenario: Checked before inputs
+- **WHEN** a user runs `konvertoj -m resize missing.jpg` and `missing.jpg` doesn't exist
+- **THEN** it fails with "Give --width, --height or --scale", not the missing-file message
+
+### Requirement: No output for modes that print details
+For a mode that shows details instead of creating files, `-o`/`--output` SHALL fail with exit code `1` before any file is read, saying the mode doesn't create files.
+
+#### Scenario: info with -o
+- **WHEN** a user runs `konvertoj -m info photo.jpg -o details`
+- **THEN** it fails with exit code `1`, saying `info` doesn't create files, so `-o` can't be used
+
+#### Scenario: colorpick with -o
+- **WHEN** a user runs `konvertoj -m colorpick logo.png --at 0,0 -o colours`
+- **THEN** it fails the same way, naming `colorpick`
+
+### Requirement: Install the video add-on
+`konvertoj --install-video` SHALL make sure FFmpeg is available for video and audio modes, downloading the add-on if needed, and SHALL be listed on the main help screen. It SHALL work without `-m` or any input.
+
+#### Scenario: Help lists it
+- **WHEN** a user runs `konvertoj --help`
+- **THEN** the help shows `--install-video`
+
+#### Scenario: Nothing to do
+- **WHEN** a user runs `konvertoj --install-video` with FFmpeg 6 on the `PATH`
+- **THEN** it says FFmpeg is already installed, naming it, and exits with `0`
+
+### Requirement: Mode warnings
+A mode MAY declare warnings about the options given, such as an option that has no effect for its format. They SHALL be printed on standard error as `Warning: <message>`, once, before any file is processed, and SHALL NOT change the exit code.
+
+#### Scenario: Ignored bitrate
+- **WHEN** a user runs `konvertoj -m towav talk.mp4 --bitrate 320k`
+- **THEN** standard error shows one warning that `--bitrate` is ignored for WAV, and the WAV is written

@@ -4,6 +4,7 @@ import {
   type OptionDefinition,
 } from "./modes/options.js";
 import {
+  commonOptionsFor,
   describeFormats,
   describeOutput,
   findMode,
@@ -23,6 +24,11 @@ const helpOptions: OptionDefinition[] = [
   },
   { name: "version", kind: "flag", description: "Show the version" },
   { name: "list-modes", kind: "flag", description: "List every mode" },
+  {
+    name: "install-video",
+    kind: "flag",
+    description: "Download the video and audio add-on (FFmpeg) in advance",
+  },
 ];
 
 const mainExampleModes = ["heictojpg", "compress", "jpgtopdf", "movtomp4"];
@@ -37,8 +43,8 @@ function optionExplanation(option: OptionDefinition): string {
   const hasLimits =
     option.rule &&
     ("choices" in option.rule ||
-      option.rule.min !== undefined ||
-      option.rule.max !== undefined);
+      ("wholeNumber" in option.rule &&
+        (option.rule.min !== undefined || option.rule.max !== undefined)));
   const rule = option.rule && hasLimits ? `, ${describeRule(option.rule)}` : "";
   const defaultValue =
     option.defaultValue === undefined
@@ -54,6 +60,13 @@ function optionRows(options: OptionDefinition[]): string[] {
     (option, index) =>
       `  ${names[index]?.padEnd(width)}  ${optionExplanation(option)}`,
   );
+}
+
+export function commonOptionRows(): { name: string; explanation: string }[] {
+  return [...commonOptions, ...helpOptions].map((option) => ({
+    name: optionName(option).trim(),
+    explanation: optionExplanation(option),
+  }));
 }
 
 export function mainHelp(): string {
@@ -97,14 +110,16 @@ export function modeHelp(mode: Mode): string {
     `${mode.name}: ${mode.description}`,
     "",
     "Usage:",
-    `  konvertoj -m ${mode.name} <input> -o <output> [options]`,
+    mode.output === "none"
+      ? `  konvertoj -m ${mode.name} <input> [options]`
+      : `  konvertoj -m ${mode.name} <input> -o <output> [options]`,
     "",
     `Input: ${describeFormats(mode.inputs)}`,
     `Output: ${describeOutput(mode)}`,
     ...modeOptions,
     "",
     "Common options:",
-    ...optionRows(commonOptions),
+    ...optionRows(commonOptionsFor(mode)),
     "",
     "Examples:",
     ...mode.examples.map((example) => `  ${example}`),

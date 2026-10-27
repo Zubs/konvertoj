@@ -8,19 +8,33 @@ Defines what konvertoj shows while a batch runs and when it ends: a line per fil
 
 ### Requirement: A line per file
 Each finished file SHALL get one line:
-- a success goes to standard output: `✓ <input> → <output>  <size before> → <size after>`,
+- a success goes to standard output: `✓ <input> → <output>  <size before> → <size after> (<change>)`, where the change, shown when the size before is above 0, is the percentage the size went down (`−83%`) or up (`+12%`), as in the summary,
 - a skip goes to standard output: `- <input> skipped: <reason>`,
 - a failure goes to standard error: `✗ <input>: <reason>`.
+
+A mode MAY attach short notes to a file. Each note SHALL be printed to standard output as its own line, `  Note: <note>`, straight after that file's line, unless `--quiet` is given.
 
 Paths SHALL be relative to the current folder. A combined item SHALL name its first input and how many others there are.
 
 #### Scenario: One success
 - **WHEN** one file is converted
-- **THEN** standard output has one `✓` line naming the input, the output and both sizes, followed by the summary
+- **THEN** standard output has one `✓` line naming the input, the output, both sizes and the change in percent, followed by the summary
+
+#### Scenario: Size change on each line
+- **WHEN** `hero.jpg` of 2.4 MB is compressed to 410 KB
+- **THEN** its line ends with `2.4 MB → 410 KB (−83%)`
 
 #### Scenario: A failure
 - **WHEN** a file fails because the mode reported a problem
 - **THEN** standard error has a `✗` line with the file and the mode's plain-English reason
+
+#### Scenario: A note
+- **WHEN** a file succeeds and its mode attached the note "only the first frame was kept, because JPG can't be animated"
+- **THEN** the line after its `✓` line is `  Note: only the first frame was kept, because JPG can't be animated`
+
+#### Scenario: Notes in quiet mode
+- **WHEN** the same happens with `--quiet`
+- **THEN** no note is printed
 
 ### Requirement: Progress bar in terminals
 When standard error is a terminal and `--quiet` isn't given, a single line SHALL show `Converting <done>/<total>…`, redrawn in place with `\r` as files finish. File lines SHALL be printed above it without breaking it. A mode MAY report a single file's progress, which SHALL add a percentage and, once it can be estimated, the time left. The line SHALL be cleared before the summary.
@@ -86,3 +100,29 @@ When a mode reports an expected problem for a file, its message SHALL be shown a
 #### Scenario: Unexpected error
 - **WHEN** a mode throws an unexpected error for one file
 - **THEN** that file's line shows the friendly reason with no stack trace, the other files carry on, and `--verbose` adds the technical error
+
+### Requirement: Sections for modes that print details
+A mode that shows details instead of creating files SHALL print one section per file on standard output, in input order, once the batch is done, with no `✓` lines and no summary. `--quiet` SHALL NOT hide the sections. Failures SHALL be reported on standard error as usual, with the usual exit codes.
+
+#### Scenario: Several files
+- **WHEN** `info` is run on three images
+- **THEN** standard output holds three sections, one per file, in the order given, and nothing else
+
+#### Scenario: Verbose lines stay off standard output
+- **WHEN** `info --verbose` is run on two images
+- **THEN** the "Working on" lines go to standard error, and standard output holds only the two sections
+
+#### Scenario: Stopped with Ctrl+C
+- **WHEN** a long `info` batch is stopped with Ctrl+C
+- **THEN** the sections for the files already done are printed, and standard error says how many of the files were done
+
+#### Scenario: One bad file
+- **WHEN** `info` is run on an image and a text file
+- **THEN** the image's section is printed, the text file's failure goes to standard error, and the exit code is `2`
+
+### Requirement: JSON for modes that print details
+With `--json`, standard output SHALL hold exactly one JSON array with one object per successful file, in input order, and nothing else.
+
+#### Scenario: Valid JSON
+- **WHEN** `info --json` is run on two images
+- **THEN** standard output parses as a JSON array of two objects, also with `--verbose`

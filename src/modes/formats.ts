@@ -20,6 +20,12 @@ export const imageOutputs = [
   "bmp",
   "ico",
 ];
+export const coreImageFormats = ["jpg", "png", "webp", "avif", "gif", "tiff"];
+export const defaultQualities: Record<string, number> = {
+  jpg: 80,
+  webp: 80,
+  avif: 50,
+};
 export const videoInputs = ["mov", "mkv", "avi", "webm", "m4v", "mp4"];
 export const audioOutputs = ["mp3", "wav", "m4a", "ogg", "flac"];
 

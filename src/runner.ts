@@ -1,16 +1,21 @@
 import { stat } from "node:fs/promises";
 import { availableParallelism } from "node:os";
+import path from "node:path";
+import { checkItem, withArticle } from "./detect.js";
 import { isUserError } from "./errors.js";
-import type { Mode } from "./modes/registry.js";
+import { extensionsFor, formatLabels } from "./modes/formats.js";
+import { needsFfmpeg, type Mode } from "./modes/registry.js";
 import { prepareOutputFolders, writeOutputFile } from "./output-files.js";
 import type { OutputPlan, PlannedItem } from "./outputs.js";
-import type { BatchResult, Reporter } from "./report.js";
+import type { BatchResult, Reporter, Section } from "./report.js";
 
 export interface BatchSettings {
   options: Record<string, string | boolean | undefined>;
   overwrite: boolean;
   cwd: string;
   signal: AbortSignal;
+  colours?: boolean;
+  ffmpeg?: string;
 }
 
 const unexpectedProblem =
@@ -53,7 +58,11 @@ export async function runBatch(
     interrupted: false,
   };
 
-  const runItem = async (item: PlannedItem) => {
+  const checksFormats = mode.inputs.every((format) =>
+    Object.hasOwn(formatLabels, format),
+  );
+
+  const runItem = async (item: PlannedItem, index: number) => {
     const unreadable = item.inputs.find((input) => input.unreadable);
     if (unreadable) {
       const reason = `can't be read (${unreadable.unreadable})`;
@@ -61,36 +70,88 @@ export async function runBatch(
       reporter.failed(item, reason);
       return;
     }
-    const output = item.output ?? "";
+    let output = item.output ?? "";
     const startedAt = Date.now();
     reporter.started(item);
     try {
-      let savedPath: string | undefined;
+      let inputs = item.inputs;
+      const notes: string[] = [];
+      if (checksFormats) {
+        const checked = await checkItem(
+          mode,
+          item,
+          settings.options,
+          settings.cwd,
+        );
+        if ("skipped" in checked) {
+          result.skipped++;
+          reporter.skipped(item, checked.skipped);
+          return;
+        }
+        inputs = checked.inputs;
+        notes.push(...checked.notes);
+      }
+      const realFormat = inputs[0]?.format;
+      const extension = path.extname(output);
+      if (
+        mode.output === "same" &&
+        realFormat &&
+        extension &&
+        !extensionsFor(realFormat).includes(extension.slice(1).toLowerCase())
+      ) {
+        output = `${output.slice(0, -extension.length)}.${realFormat}`;
+        notes.push(
+          `saved as .${realFormat}, because ${path.basename(item.inputs[0]?.path ?? "")} is really ${withArticle(realFormat)} file`,
+        );
+      }
+      const savedPaths: string[] = [];
+      let shown: Section | undefined;
       const outcome = await mode.run({
-        inputs: item.inputs,
+        inputs,
         output,
         options: settings.options,
-        save: async (write) => {
-          savedPath = await writeOutputFile(output, write, {
-            overwrite: settings.overwrite,
-          });
+        save: async (write, { suffix = "" } = {}) => {
+          const { dir, name, ext } = path.parse(output);
+          const savedPath = await writeOutputFile(
+            path.join(dir, `${name}${suffix}${ext}`),
+            write,
+            { overwrite: settings.overwrite },
+          );
+          savedPaths.push(savedPath);
           return savedPath;
         },
         progress: (fraction) => reporter.progress(fraction, startedAt),
         detail: (message) => reporter.detail(message),
+        note: (message) => notes.push(message),
+        show: (section) => {
+          shown = section;
+        },
+        colours: settings.colours === true,
+        ffmpeg: settings.ffmpeg,
         signal: settings.signal,
       });
-      if (outcome?.skipped || !savedPath) {
+      if (shown && !outcome?.skipped) {
+        result.converted++;
+        reporter.shown(index, shown, notes);
+        return;
+      }
+      if (outcome?.skipped || savedPaths.length === 0) {
         result.skipped++;
         reporter.skipped(item, outcome?.skipped ?? "nothing was written");
         return;
       }
       const before = await totalSize(item.inputs.map((input) => input.path));
-      const after = await totalSize([savedPath]);
+      const after = await totalSize(savedPaths);
       result.converted++;
       result.sizeBefore += before;
       result.sizeAfter += after;
-      reporter.succeeded({ ...item, output: savedPath }, before, after);
+      reporter.succeeded(
+        { ...item, output: savedPaths[0] },
+        before,
+        after,
+        notes,
+        savedPaths.length - 1,
+      );
     } catch (error) {
       if (settings.signal.aborted) {
         return;
@@ -104,15 +165,26 @@ export async function runBatch(
   let next = 0;
   const worker = async () => {
     while (next < plan.items.length && !settings.signal.aborted) {
-      const item = plan.items[next++];
+      const index = next++;
+      const item = plan.items[index];
       if (item) {
-        await runItem(item);
+        await runItem(item, index);
       }
     }
   };
   await Promise.all(
     Array.from(
-      { length: Math.min(parallelLimit(), plan.items.length) },
+      {
+        length: Math.min(
+          needsFfmpeg(
+            mode,
+            plan.items.flatMap((item) => item.inputs),
+          )
+            ? 1
+            : parallelLimit(),
+          plan.items.length,
+        ),
+      },
       worker,
     ),
   );

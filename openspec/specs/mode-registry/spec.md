@@ -74,11 +74,15 @@ Every mode SHALL have:
 - **THEN** each has a non-empty description, at least one example starting with `konvertoj -m <name>`, at least one input format and an output description
 
 ### Requirement: Common options
-Every mode SHALL accept the common options `-o/--output`, `--overwrite`, `--strip-metadata`, `-r/--recursive`, `--dry-run`, `-q/--quiet` and `-v/--verbose`.
+Every mode SHALL accept the common options `-o/--output`, `--overwrite`, `--strip-metadata`, `-r/--recursive`, `--dry-run`, `-q/--quiet` and `-v/--verbose`, except that a mode which shows details instead of creating files SHALL NOT accept `-o/--output`, `--overwrite` or `--strip-metadata`, and its help SHALL NOT list them.
 
 #### Scenario: Common options on any mode
 - **WHEN** the options of `heictojpg`, `rotate` and `movtomp4` are inspected
 - **THEN** each includes all seven common options
+
+#### Scenario: Modes that print details
+- **WHEN** the options and help of `info` and `colorpick` are inspected
+- **THEN** they include `-r/--recursive`, `--dry-run`, `-q/--quiet` and `-v/--verbose`, but not `-o/--output`, `--overwrite` or `--strip-metadata`, and the usage line has no `-o`
 
 ### Requirement: Mode options
 Each mode SHALL declare the options its feature in Features.md describes, each with a short explanation and its default where there is one. An option name SHALL mean the same kind of value (a flag, or a value) in every mode that uses it.
@@ -92,7 +96,7 @@ Each mode SHALL declare the options its feature in Features.md describes, each w
 - **THEN** no option is a flag in one mode and takes a value in another
 
 ### Requirement: Option value rules
-A value option whose valid values are a fixed list of words or a number range SHALL declare that list or range for its mode. A range SHALL state whether only whole numbers are allowed. Every declared default SHALL satisfy its own rule.
+A value option whose valid values are a fixed list of words, a number range, a colour, a list of sizes or a fixed pattern SHALL declare that list, range, colour rule, size list rule or pattern for its mode. A range SHALL state whether only whole numbers are allowed. Every declared default SHALL satisfy its own rule.
 
 #### Scenario: Declared rules
 - **WHEN** the registry is inspected
@@ -103,11 +107,28 @@ A value option whose valid values are a fixed list of words or a number range SH
   - `togif`'s `--fps` allows whole numbers from 1 to 30 and `--speed` allows 0.5 to 4,
   - `enlarge`'s `--scale` allows `2x` and `4x`,
   - `colorpick`'s `--palette` allows whole numbers from 1 to 16,
-  - `pdftopng`'s `--dpi` allows 36 to 600.
+  - `pdftopng`'s `--dpi` allows 36 to 600,
+  - `--background` in `pngtojpg` and `rotate` allows colours,
+  - `pngtoico`'s `--sizes` allows comma-separated whole numbers from 1 to 256,
+  - `svgtopng`'s `--dpi` allows numbers from 1 to 7200,
+  - `resize`'s `--scale` allows positive percentages such as `50%`,
+  - `compress`'s `--target-size` allows a positive size in `kb` or `mb`, in any letter case, such as `200kb` or `1.5MB`,
+  - `crop`'s `--aspect` allows a ratio of two positive numbers, such as `16:9` or `1:1`,
+  - `colorpick`'s `--at` allows two whole numbers of 0 or more separated by a comma, such as `10,20`,
+  - `pdftopng`'s `--page` allows `all`, a page, a range or a comma-separated list of pages and ranges, such as `3`, `1-5` or `1,3,7`,
+  - `mp4tomp3`'s and `togif`'s `--start` and `--end` allow times such as `90`, `1:30` or `1:02:30`.
 
 #### Scenario: Defaults are valid
 - **WHEN** every option default in the registry is checked against its option's rule
 - **THEN** every default passes
+
+#### Scenario: Palette count has no default
+- **WHEN** `colorpick`'s options are inspected
+- **THEN** `--palette` has no default, because it always needs a count
+
+#### Scenario: TIFF quality has no default
+- **WHEN** `pngtotiff`'s options are inspected
+- **THEN** `--quality` allows whole numbers from 1 to 100 and has no default, because TIFF is lossless unless a quality is given
 
 ### Requirement: Output naming details
 Every Tools mode whose output keeps the input's format SHALL declare its output suffix:
@@ -119,12 +140,27 @@ Every Tools mode whose output keeps the input's format SHALL declare its output 
 - `flip`: `flipped`
 - `strip`: `stripped`
 
-Every `<image>topdf` mode and `topdf` SHALL be marked as combining all inputs into one output. No other mode SHALL be.
+Every `<image>topdf` mode and `topdf` SHALL be marked as combining all inputs into one output. No other mode SHALL be. Every `pdfto<image>` mode SHALL be marked as writing several files per input. No other mode SHALL be.
 
 #### Scenario: Suffixes declared
 - **WHEN** the registry is inspected
 - **THEN** every mode with output "same as input" has a suffix, and `compress` has `compressed`
 
+#### Scenario: Several outputs per input
+- **WHEN** the registry is inspected
+- **THEN** exactly the 8 `pdfto<image>` modes write several files per input
+
 #### Scenario: Combining modes
 - **WHEN** the registry is inspected
 - **THEN** exactly the 11 images-to-PDF modes combine their inputs, and `pdftopng` and `heictojpg` don't
+
+### Requirement: Modes that need FFmpeg
+Every mode in the Video & Audio group SHALL be marked as needing FFmpeg. `togif` SHALL need FFmpeg only when at least one of its inputs is a video. No Image, PDF or Tools mode SHALL need it.
+
+#### Scenario: Marked modes
+- **WHEN** the registry is inspected
+- **THEN** all 41 Video & Audio modes need FFmpeg, and no Image, PDF or Tools mode does
+
+#### Scenario: togif decides from its inputs
+- **WHEN** `togif` is asked whether it needs FFmpeg for `logo.png`, and for `clip.mp4`
+- **THEN** it doesn't for the PNG, and does for the MP4

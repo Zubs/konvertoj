@@ -43,7 +43,7 @@ Without `-o`:
 - **THEN** the output is `hero-compressed.jpg`
 
 ### Requirement: Output folder for batches
-When there's more than one input, any folder or pattern input, or when `-o` names an existing folder or ends with `/` or `\`, `-o` SHALL be a folder. Each output SHALL use its default file name inside it. Files from a folder or pattern SHALL keep their path below that folder or below the pattern's fixed leading part. The folder SHALL be created only when work starts. If `-o` names an existing file when a folder is needed, the command SHALL fail with exit code `1`.
+When there's more than one input, any folder or pattern input, when the mode writes several files per input, or when `-o` names an existing folder or ends with `/` or `\`, `-o` SHALL be a folder. Each output SHALL use its default file name inside it. Files from a folder or pattern SHALL keep their path below that folder or below the pattern's fixed leading part. The folder SHALL be created only when work starts. If `-o` names an existing file when a folder is needed, the command SHALL fail with exit code `1`.
 
 #### Scenario: Several files into a new folder
 - **WHEN** a user runs `konvertoj -m heictojpg a.heic b.heic c.heic -o converted`
@@ -57,9 +57,13 @@ When there's more than one input, any folder or pattern input, or when `-o` name
 - **WHEN** `-o jpgs` is given with one input file, and `jpgs` is an existing folder
 - **THEN** the output is `jpgs/<input name>.jpg`
 
+#### Scenario: Several files from one input
+- **WHEN** a user runs `konvertoj -m pdftopng report.pdf -o pages`
+- **THEN** the page images are written inside the `pages` folder
+
 #### Scenario: Folder needed but -o is a file
 - **WHEN** a user runs `konvertoj -m heictojpg a.heic b.heic -o notes.txt`, and `notes.txt` is an existing file
-- **THEN** it fails with exit code `1`, saying `-o` must be a folder when there are several inputs
+- **THEN** it fails with exit code `1`, saying `-o` must be a folder when there are several inputs or pages
 
 ### Requirement: Combined output
 For a mode that combines its inputs (images to PDF), all inputs SHALL produce one output in input order. `-o` SHALL name that file, following the extension rules. Without `-o`, the output SHALL be named after the first input, in its folder. If `-o` names an existing folder, the file SHALL go inside it, named after the first input.

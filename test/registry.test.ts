@@ -5,6 +5,7 @@ import {
   findMode,
   groups,
   modes,
+  needsFfmpeg,
   type Mode,
 } from "../src/modes/registry.js";
 
@@ -196,6 +197,28 @@ describe("mode registry", () => {
       max: 600,
       wholeNumber: false,
     });
+    expect(option("pngtojpg", "background")?.rule).toEqual({ colour: true });
+    expect(option("rotate", "background")?.rule).toEqual({ colour: true });
+    expect(option("pngtoico", "sizes")?.rule).toEqual({
+      sizeList: { min: 1, max: 256 },
+    });
+    expect(option("resize", "scale")?.rule).toMatchObject({
+      description: "a percentage such as 50% or 200%",
+    });
+    expect(option("svgtopng", "dpi")?.rule).toEqual({
+      min: 1,
+      max: 7200,
+      wholeNumber: false,
+    });
+  });
+
+  it("gives TIFF quality no default", () => {
+    expect(option("pngtotiff", "quality")?.rule).toEqual({
+      min: 1,
+      max: 100,
+      wholeNumber: true,
+    });
+    expect(option("pngtotiff", "quality")?.defaultValue).toBeUndefined();
   });
 
   it("only declares defaults that pass their own rule", () => {
@@ -229,5 +252,21 @@ describe("mode registry", () => {
     );
     expect(findMode("pdftopng")?.combinesInputs).toBeUndefined();
     expect(findMode("heictojpg")?.combinesInputs).toBeUndefined();
+  });
+});
+
+describe("modes that need FFmpeg", () => {
+  it("are exactly the Video & Audio modes", () => {
+    const marked = modes.filter((mode) => mode.usesFfmpeg === true);
+    expect(marked).toHaveLength(41);
+    expect(marked.every((mode) => mode.group === "Video & Audio")).toBe(true);
+  });
+});
+
+describe("togif and FFmpeg", () => {
+  it("needs FFmpeg only for videos", () => {
+    const togif = findMode("togif");
+    expect(togif && needsFfmpeg(togif, [{ path: "logo.png" }])).toBe(false);
+    expect(togif && needsFfmpeg(togif, [{ path: "clip.MP4" }])).toBe(true);
   });
 });

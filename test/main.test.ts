@@ -5,6 +5,14 @@ import { mainHelp, modeHelp, modeList } from "../src/help.js";
 import { main } from "../src/main.js";
 import { findMode } from "../src/modes/registry.js";
 import { copyMode } from "./support/copy-mode.mjs";
+
+const unbuiltMode = {
+  ...copyMode,
+  name: "unbuilt",
+  inputs: ["mp4"],
+  output: "gif",
+  run: undefined,
+};
 import { makeFolder } from "./support/folders.js";
 
 const projectFolder = process.cwd();
@@ -39,7 +47,7 @@ async function run(...args: string[]) {
       errIsTerminal: false,
       colours: { out: false, err: false },
     },
-    { extraModes: [copyMode] },
+    { extraModes: [copyMode, unbuiltMode] },
   );
   return { exitCode, stdout, stderr };
 }
@@ -101,8 +109,16 @@ describe("main", () => {
   });
 
   it("treats -o and --output the same", async () => {
-    expect(await run("-m", "heictojpg", "photo.heic", "-o", "beach")).toEqual(
-      await run("-m", "heictojpg", "photo.heic", "--output", "beach"),
+    const withoutTiming = (result: Awaited<ReturnType<typeof run>>) => ({
+      ...result,
+      stdout: result.stdout.replace(/Done in [\d.ms ]+:/, "Done:"),
+    });
+    expect(
+      withoutTiming(await run("-m", "heictojpg", "photo.heic", "-o", "beach")),
+    ).toEqual(
+      withoutTiming(
+        await run("-m", "heictojpg", "photo.heic", "--output", "beach"),
+      ),
     );
   });
 
@@ -226,23 +242,51 @@ describe("main", () => {
     ["heictojpg", "photo.heic", "--quality", "100"],
     ["movtomp4", "clip.mov", "--quality", "HIGH"],
     ["rotate", "photo.jpg", "--angle", "-90"],
-    ["heictojpg", "photo.heic", "--background", "banana"],
+    ["pngtojpg", "photo.png", "--output", "my banana"],
+    ["heictojpg", "photo.heic", "--background", "red"],
+    ["heictojpg", "photo.heic", "--background", "#f80"],
+    ["heictojpg", "photo.heic", "--background", "#FF8800"],
+    ["heictojpg", "photo.heic", "--background", "rgb(255, 136, 0)"],
   ])(
     "accepts valid values for %s %s %s %s",
     async (mode, file, option, value) => {
+      const result = await run("-m", mode, file, option, value);
+      expect(result.stderr).not.toContain(" must be ");
+    },
+  );
+
+  it.each(["0", "257", "abc", "16,,32"])(
+    "rejects --sizes %s",
+    async (value) => {
       await expectFailure(
-        ["-m", mode, file, option, value],
-        `${mode} isn't available yet.`,
+        ["-m", "pngtoico", "logo.png", "--sizes", value],
+        "--sizes must be whole numbers from 1 to 256 separated by commas",
       );
     },
   );
 
+  it("rejects a colour it doesn't recognise before touching files", async () => {
+    await expectFailure(
+      ["-m", "pngtojpg", "photo.png", "--background", "banana", "-o", "out/"],
+      "--background must be a colour such as white, #ff8800 or rgb(255,136,0). You gave banana.",
+    );
+    expect(existsSync(path.join(workFolder, "out"))).toBe(false);
+  });
+
   it("says when a mode isn't built yet", async () => {
     await expectFailure(
-      ["-m", "heictojpg", "photo.heic"],
-      "heictojpg isn't available yet.",
+      ["-m", "unbuilt", "clip.mp4"],
+      "unbuilt isn't available yet.",
     );
   });
+  it("checks a mode's own option rules before inputs", async () => {
+    const result = await expectFailure(
+      ["-m", "resize", "missing.jpg"],
+      "Give --width, --height or --scale",
+    );
+    expect(result.stderr).not.toContain("can't be found");
+  });
+
   it("checks option values before inputs", async () => {
     const result = await expectFailure(
       ["-m", "heictojpg", "missing.heic", "--quality", "101"],
@@ -253,8 +297,8 @@ describe("main", () => {
 
   it("reports input mistakes before saying a mode isn't built", async () => {
     const result = await expectFailure(
-      ["-m", "heictojpg", "missing.heic"],
-      "missing.heic can't be found",
+      ["-m", "unbuilt", "missing.mp4"],
+      "missing.mp4 can't be found",
     );
     expect(result.stderr).not.toContain("isn't available yet");
   });
@@ -319,7 +363,7 @@ describe("main", () => {
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toBe("");
     expect(result.stdout).toMatch(
-      /^✓ notes\.txt → notes-copy\.txt {2}9 B → 9 B\nDone in \d+\.\ds: 1 converted, 0 failed, 0 skipped\. 9 B → 9 B \(0%\)\.\n$/,
+      /^✓ notes\.txt → notes-copy\.txt {2}9 B → 9 B \(0%\)\nDone in \d+\.\ds: 1 converted, 0 failed, 0 skipped\. 9 B → 9 B \(0%\)\.\n$/,
     );
     expect(readFileSync(path.join(workFolder, "notes-copy.txt"), "utf8")).toBe(
       "notes.txt",
@@ -371,8 +415,8 @@ describe("main", () => {
 
   it("says an unbuilt mode isn't available without creating the -o folder", async () => {
     await expectFailure(
-      ["-m", "heictojpg", "photo.heic", "-o", "converted/"],
-      "heictojpg isn't available yet.",
+      ["-m", "unbuilt", "clip.mp4", "-o", "converted/"],
+      "unbuilt isn't available yet.",
     );
     expect(existsSync(path.join(workFolder, "converted"))).toBe(false);
   });

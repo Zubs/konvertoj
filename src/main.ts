@@ -8,10 +8,12 @@ import {
   acceptedOptions,
   findMode,
   modes,
+  needsFfmpeg,
   type Mode,
 } from "./modes/registry.js";
 import { suggestMode } from "./modes/suggest.js";
 import type { OutputPlan } from "./outputs.js";
+import type { DownloadSource, FoundFfmpeg } from "./video/ffmpeg.js";
 import { Reporter, type Output } from "./report.js";
 
 export type { Output } from "./report.js";
@@ -19,6 +21,11 @@ export type { Output } from "./report.js";
 export interface MainOptions {
   extraModes?: Mode[];
   signal?: AbortSignal;
+  ask?: (question: string, signal?: AbortSignal) => Promise<string>;
+  interactive?: boolean;
+  environment?: NodeJS.ProcessEnv;
+  home?: string;
+  ffmpegSource?: DownloadSource;
 }
 
 const commandOptions: ParseArgsOptionsConfig = {
@@ -26,6 +33,7 @@ const commandOptions: ParseArgsOptionsConfig = {
   help: { type: "boolean", short: "h" },
   version: { type: "boolean" },
   "list-modes": { type: "boolean" },
+  "install-video": { type: "boolean" },
 };
 
 const parseOptions: ParseArgsOptionsConfig = { ...commandOptions };
@@ -105,11 +113,53 @@ function optionProblem(
   return undefined;
 }
 
+async function provideFfmpeg(
+  output: Output,
+  options: MainOptions,
+  explicit: boolean,
+): Promise<FoundFfmpeg | number> {
+  const { defaultSettings, ensureFfmpeg } = await import("./video/ffmpeg.js");
+  const defaults = defaultSettings();
+  try {
+    return await ensureFfmpeg({
+      environment: options.environment ?? defaults.environment,
+      home: options.home ?? defaults.home,
+      interactive: options.interactive === true,
+      explicit,
+      ask: options.ask,
+      err: output.err,
+      errIsTerminal: output.errIsTerminal,
+      source: options.ffmpegSource,
+      signal: options.signal,
+    });
+  } catch (error) {
+    if (options.signal?.aborted) {
+      output.err("Stopped. Nothing was downloaded.\n");
+      return 130;
+    }
+    if (isUserError(error)) {
+      output.err(`${error.message}\n`);
+      return 1;
+    }
+    throw error;
+  }
+}
+
+const foundMessages: Record<string, (file: string) => string> = {
+  chosen: (file) =>
+    `FFmpeg is set with KONVERTOJ_FFMPEG_PATH (${file}), so there's nothing to download.`,
+  installed: (file) =>
+    `FFmpeg is already installed at ${file}, so there's nothing to download.`,
+  cached: (file) => `The video add-on is already installed at ${file}.`,
+};
+
 export async function main(
   args: string[],
   output: Output,
-  { extraModes = [], signal = new AbortController().signal }: MainOptions = {},
+  options: MainOptions = {},
 ): Promise<number> {
+  const { extraModes = [], signal = new AbortController().signal } = options;
+  const mainOptions = { ...options, signal };
   const { values, positionals, tokens } = parseArgs({
     args,
     options: parseOptions,
@@ -124,6 +174,17 @@ export async function main(
 
   if (values.version) {
     output.out(`${readVersion()}\n`);
+    return 0;
+  }
+  if (values["install-video"]) {
+    const found = await provideFfmpeg(output, mainOptions, true);
+    if (typeof found === "number") {
+      return found;
+    }
+    const message = foundMessages[found.source];
+    if (message) {
+      output.out(`${message(found.path)}\n`);
+    }
     return 0;
   }
   if (values["list-modes"]) {
@@ -158,7 +219,12 @@ export async function main(
     return 0;
   }
 
-  const problem = optionProblem(mode, tokens);
+  if (mode.output === "none" && values.output !== undefined) {
+    return fail(
+      `${mode.name} doesn't create files, so -o can't be used. Remove -o to see the details.`,
+    );
+  }
+  const problem = optionProblem(mode, tokens) ?? mode.checkOptions?.(values);
   if (problem) {
     return fail(problem);
   }
@@ -188,6 +254,7 @@ export async function main(
     throw error;
   }
 
+  plan.warnings.push(...(mode.warnings?.(values) ?? []));
   for (const warning of plan.warnings) {
     output.err(`Warning: ${warning}\n`);
   }
@@ -199,18 +266,44 @@ export async function main(
   if (!run) {
     return fail(`${mode.name} isn't available yet.`);
   }
+  let ffmpeg: string | undefined;
+  if (
+    needsFfmpeg(
+      mode,
+      plan.items.flatMap((item) => item.inputs),
+    )
+  ) {
+    const found = await provideFfmpeg(output, mainOptions, false);
+    if (typeof found === "number") {
+      return found;
+    }
+    ffmpeg = found.path;
+  }
 
   const { exitCodeFor, runBatch } = await import("./runner.js");
   const reporter = new Reporter(
     output,
-    { quiet: values.quiet === true, verbose: values.verbose === true, cwd },
+    {
+      quiet: values.quiet === true,
+      verbose: values.verbose === true,
+      cwd,
+      printing: mode.output === "none",
+      json: values.json === true,
+    },
     plan.items.length,
   );
   try {
     const result = await runBatch(
       { ...mode, run },
       plan,
-      { options: values, overwrite: values.overwrite === true, cwd, signal },
+      {
+        options: values,
+        overwrite: values.overwrite === true,
+        cwd,
+        signal,
+        colours: output.colours.out,
+        ffmpeg,
+      },
       reporter,
     );
     return exitCodeFor(result, plan.items.length);

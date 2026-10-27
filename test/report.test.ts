@@ -78,6 +78,60 @@ describe("formatChange", () => {
 });
 
 describe("Reporter", () => {
+  it("prints sections in input order with no summary, even when quiet", () => {
+    const { output, written } = fakeOutput(false);
+    const reporter = new Reporter(
+      output,
+      { quiet: true, verbose: true, cwd, printing: true },
+      2,
+    );
+    reporter.started(item("b.png"));
+    reporter.shown(1, {
+      text: "b.png\n  Format: PNG",
+      data: { file: "b.png" },
+    });
+    reporter.shown(0, {
+      text: "a.png\n  Format: PNG",
+      data: { file: "a.png" },
+    });
+    reporter.finish(result({ converted: 2 }));
+    expect(written.out).toBe("a.png\n  Format: PNG\n\nb.png\n  Format: PNG\n");
+    expect(written.err).toContain("Working on b.png");
+  });
+
+  it("prints one JSON array, and the sections done when stopped", () => {
+    const { output, written } = fakeOutput(false);
+    const reporter = new Reporter(
+      output,
+      { quiet: false, verbose: false, cwd, printing: true, json: true },
+      3,
+    );
+    reporter.shown(0, { text: "a", data: { file: "a.png" } });
+    reporter.finish(result({ converted: 1, interrupted: true }));
+    expect(JSON.parse(written.out)).toEqual([{ file: "a.png" }]);
+    expect(written.err).toBe("Stopped by Ctrl+C after 1 of 3.\n");
+  });
+
+  it("prints notes after a success line, but not when quiet", () => {
+    const note = "only the first frame was kept, because JPG can't be animated";
+    const loud = fakeOutput(false);
+    new Reporter(
+      loud.output,
+      { quiet: false, verbose: false, cwd },
+      1,
+    ).succeeded(item("a.gif", "a.jpg"), 10, 10, [note]);
+    expect(loud.written.out).toBe(
+      `✓ a.gif → a.jpg  10 B → 10 B (0%)\n  Note: ${note}\n`,
+    );
+    const quiet = fakeOutput(false);
+    new Reporter(
+      quiet.output,
+      { quiet: true, verbose: false, cwd },
+      1,
+    ).succeeded(item("a.gif", "a.jpg"), 10, 10, [note]);
+    expect(quiet.written.out).toBe("");
+  });
+
   it("prints a success line and a summary", () => {
     const { output, written } = fakeOutput(false);
     const time = clock();
@@ -93,7 +147,7 @@ describe("Reporter", () => {
       result({ converted: 1, sizeBefore: 2_516_582, sizeAfter: 419_840 }),
     );
     expect(written.out).toBe(
-      "✓ photo.heic → photo.jpg  2.4 MB → 410 KB\nDone in 1.2s: 1 converted, 0 failed, 0 skipped. 2.4 MB → 410 KB (−83%).\n",
+      "✓ photo.heic → photo.jpg  2.4 MB → 410 KB (−83%)\nDone in 1.2s: 1 converted, 0 failed, 0 skipped. 2.4 MB → 410 KB (−83%).\n",
     );
     expect(written.err).toBe("");
   });
@@ -135,7 +189,7 @@ describe("Reporter", () => {
     );
     reporter.succeeded(item("scan1.jpg", "scans.pdf", 2), 3000, 1000);
     expect(written.out).toBe(
-      "✓ scan1.jpg and 2 others → scans.pdf  2.9 KB → 1000 B\n",
+      "✓ scan1.jpg and 2 others → scans.pdf  2.9 KB → 1000 B (−67%)\n",
     );
   });
 
@@ -300,5 +354,21 @@ describe("Reporter", () => {
     expect(written.out.trim().split("\n").at(-1)).toBe(
       "Stopped by Ctrl+C after 4 of 10: 4 converted, 0 failed, 0 skipped. 400 B → 200 B (−50%).",
     );
+  });
+});
+
+describe("time left", () => {
+  it("says one second, not one seconds", () => {
+    const { output, written } = fakeOutput(true);
+    const time = clock();
+    const reporter = new Reporter(
+      output,
+      { quiet: false, verbose: false, cwd },
+      2,
+      time.now,
+    );
+    time.advance(1000);
+    reporter.progress(0.99, 0);
+    expect(written.err).toContain("about 1 second left");
   });
 });
