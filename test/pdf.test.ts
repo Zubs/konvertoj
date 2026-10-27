@@ -395,7 +395,7 @@ describe("images to PDF", () => {
     const again = await run(folder, "-m", "jpgtopdf", "scans", "-o", "again");
     expect(again.exitCode).toBe(0);
     expect(again.stdout).toContain(
-      "Note: left out scans/page1.pdf, which is already a PDF",
+      `Note: left out ${path.join("scans", "page1.pdf")}, which is already a PDF`,
     );
     expect(await pageSizes(path.join(folder, "again.pdf"))).toHaveLength(2);
   });

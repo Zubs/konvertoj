@@ -2,7 +2,8 @@ import { Buffer } from "node:buffer";
 import path from "node:path";
 import { writeFile } from "node:fs/promises";
 import { encode as encodeBmp } from "bmp-ts";
-import sharp, { type Sharp } from "sharp";
+import type { Sharp } from "sharp";
+import sharp from "./sharp.js";
 import {
   damagedFile,
   isFileSystemError,

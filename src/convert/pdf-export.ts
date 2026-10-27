@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
-import sharp from "sharp";
+import sharp from "./sharp.js";
 import { damagedFile, UserError } from "../errors.js";
 import { background } from "../modes/options.js";
 import type { RunContext } from "../modes/registry.js";

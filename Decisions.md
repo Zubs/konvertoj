@@ -153,3 +153,9 @@ Decisions taken while building the features in [Features.md](Features.md) that g
 - **The demo job and the online link check haven't run in CI yet,** because this work hasn't been pushed. The link check was run locally and every link works.
 - **The demo compresses a PNG.** The iPhone fixture is small, and its JPG is already optimised, so `compress` would show a skip. The demo converts it to PNG and compresses that instead.
 - **PDF examples name the PDF file.** `topdf ./receipts -o receipts` named the input folder itself, so the PDF was saved inside it as `1.pdf`. The examples now use `-o receipts.pdf` and `-o scans.pdf`, which make the file the README describes. How konvertoj treats an existing folder given to `-o` is unchanged.
+
+## Fixes from the first CI run
+
+- **sharp's cache is turned off.** On Windows, libvips keeps every file it has opened in its cache, and keeps it locked, so files couldn't be deleted while konvertoj was still running (79 test failures, and in a long batch a user couldn't move or delete originals that had already been converted). konvertoj opens each file once, so the cache gave nothing. `src/convert/sharp.ts` turns it off once for every image module, and the tests do the same in a setup file.
+- **Stopping waits for FFmpeg to exit.** When Ctrl+C stops a video, Node.js reports the stop before the killed FFmpeg has let go of the half-written file. On Windows the file couldn't be deleted yet, so a `.konvertoj-tmp` file was left behind. konvertoj now waits for FFmpeg to exit before cleaning up.
+- **A test expected `/` in a path.** The note about a left-out PDF prints the system's own separator, so the test now builds the expected path with `path.join`.

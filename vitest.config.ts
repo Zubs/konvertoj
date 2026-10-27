@@ -4,5 +4,6 @@ export default defineConfig({
   test: {
     include: ["test/**/*.test.ts"],
     globalSetup: ["test/build.setup.ts"],
+    setupFiles: ["test/sharp.setup.ts"],
   },
 });

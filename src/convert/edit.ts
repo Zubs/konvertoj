@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
-import sharp, { type Sharp } from "sharp";
+import type { Sharp } from "sharp";
+import sharp from "./sharp.js";
 import { damagedFile, UserError } from "../errors.js";
 import type { RunContext } from "../modes/registry.js";
 import type { OpenedImage } from "./decode.js";

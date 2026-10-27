@@ -2,7 +2,8 @@ import { Buffer } from "node:buffer";
 import { readFile } from "node:fs/promises";
 import { decode as decodeBmp } from "bmp-ts";
 import decodeIco from "decode-ico";
-import sharp, { type Metadata, type Sharp } from "sharp";
+import type { Metadata, Sharp } from "sharp";
+import sharp from "./sharp.js";
 import {
   damagedFile,
   isFileSystemError,

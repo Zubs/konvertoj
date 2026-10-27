@@ -519,8 +519,17 @@ export function runFfmpeg(
     child.stderr.on("data", (chunk: string) => {
       errors = (errors + chunk).slice(-4096);
     });
-    child.on("error", reject);
+    child.on("error", (error) => {
+      if (signal?.aborted) {
+        child.once("close", () => reject(error));
+      } else {
+        reject(error);
+      }
+    });
     child.on("close", (code) => {
+      if (signal?.aborted) {
+        return;
+      }
       if (code === 0) {
         resolve({ frames });
       } else {

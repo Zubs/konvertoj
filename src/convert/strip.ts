@@ -1,5 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
-import sharp from "sharp";
+import sharp from "./sharp.js";
 import type { RunContext } from "../modes/registry.js";
 import { convertImage } from "./image.js";
 import { isLosslessWebp, removeJpegDetails } from "./metadata.js";
