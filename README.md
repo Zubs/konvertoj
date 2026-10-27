@@ -1,5 +1,7 @@
 # konvertoj
 
+[![npm](https://img.shields.io/npm/v/konvertoj)](https://www.npmjs.com/package/konvertoj)
+
 Convert and edit images, PDFs and a few common video and audio files from the command line, on your own computer. Nothing is uploaded.
 
 <!-- demo:start -->
@@ -32,7 +34,7 @@ The first turns an iPhone photo into `holiday.jpg`, the second makes a smaller c
 
 ## Install
 
-To have the `konvertoj` command always ready, install it once:
+konvertoj is [on npm](https://www.npmjs.com/package/konvertoj). To have the `konvertoj` command always ready, install it once:
 
 ```text
 npm install -g konvertoj

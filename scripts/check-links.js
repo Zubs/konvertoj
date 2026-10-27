@@ -33,6 +33,13 @@ for (const [, heading] of readme
   slugs.add(count === 0 ? base : `${base}-${count}`);
 }
 
+function checkedAddress(target) {
+  const npmPackage = /^https:\/\/www\.npmjs\.com\/package\/([^/?#]+)/.exec(
+    target,
+  );
+  return npmPackage ? `https://registry.npmjs.org/${npmPackage[1]}` : target;
+}
+
 async function problemWith(target) {
   if (target.startsWith("mailto:")) {
     return undefined;
@@ -47,7 +54,7 @@ async function problemWith(target) {
     let problem;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const response = await globalThis.fetch(target, {
+        const response = await globalThis.fetch(checkedAddress(target), {
           headers: { "user-agent": "konvertoj-link-check" },
           redirect: "follow",
           signal: globalThis.AbortSignal.timeout(15_000),
