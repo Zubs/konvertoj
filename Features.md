@@ -4,8 +4,6 @@ This document breaks down every v1 feature from [Spec.md](Spec.md), in the order
 
 Tick a feature in the list below when everything under **How it works** is built and all its **Tests** pass.
 
-Decisions taken outside this plan are listed, with their reasons, in [Decisions.md](Decisions.md).
-
 Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), **O**ne (a single item), **M**any (several items), **B**oundaries (limits and edge values), **I**nterfaces (how it connects to the command line and other features), **E**xceptions (errors and bad input), then a **S**imple real-world scenario last.
 
 ## Progress
@@ -175,6 +173,10 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - A `<from>to<to>` mode checks each input matches `<from>`. If it doesn't, the file fails with a suggestion, e.g. *"holiday.heic looks like a PNG. Try: -m pngtojpg"*.
 - A `to<format>` mode accepts any supported input and picks the right converter for each file, so one batch can mix formats.
 - A file that already matches the target in a `to<format>` mode (e.g. a JPG with `tojpg`) is skipped with a note, unless a conversion option such as `--quality` is given.
+- Files konvertoj can't use in a folder (text files, unknown types) are listed with their reasons and counted as failed, so the exit code is `2`. "Skipped" is kept for files that need no work, such as a JPG given to `tojpg`, so scripts can tell "nothing to do" apart from "couldn't do it".
+- `--strip-metadata` counts as a conversion option: a JPG given to `tojpg` with it is rewritten, not skipped.
+- Format checks run only for modes whose input formats konvertoj knows (every real mode), so the runner's test-only `copy` mode can use `.txt` files.
+- The real HEIC test photos (`test/fixtures/iphone.heic` and `burst.heic`) are made on macOS by `test/fixtures/make-fixtures.swift` with Apple's encoder, with camera details, a date, a GPS position and a rotation, so no real person's location is in the repository.
 
 **Tests**
 - An empty (0-byte) file fails with "is empty".
@@ -187,7 +189,7 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - A text file renamed to `.jpg` fails with "isn't a file konvertoj can convert".
 - A supported but wrong kind of file (e.g. an MP4 given to `topdf`) fails, naming the modes that do accept it.
 - A truncated or corrupt image fails with "looks damaged" instead of a crash.
-- A user runs `tojpg` on a messy downloads folder and gets JPGs for everything convertible and a clear list of what was skipped.
+- A user runs `tojpg` on a messy downloads folder and gets JPGs for everything convertible, and a clear list of the files it couldn't use and why.
 
 **Done when:** Files are recognised by their contents, `to<format>` works on mixed batches, and a wrong mode always suggests the right one.
 
@@ -201,11 +203,16 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 
 **How it works**
 - `sharp` (libvips) does the work. Its prebuilt binaries install automatically on Windows, macOS and Linux, so no extra software is needed.
-- Options: `--quality 1–100` (default per format, e.g. 80 for JPG), `--background <colour>` when transparency is lost (default white), `--lossless` for WebP and AVIF, `--progressive` for JPG, `--grayscale`. Feature 9 adds `--width`, `--height` and `--fit`.
+- Options: `--quality 1–100` (default per format, e.g. 80 for JPG; TIFF is lossless unless `--quality` is given), `--background <colour>` when transparency is lost (default white), `--lossless` for WebP and AVIF, `--progressive` for JPG, `--grayscale`. Feature 9 adds `--width`, `--height` and `--fit`.
 - Colours are accepted as names (`white`), hex (`#ff8800`) or `rgb(…)`.
 - Animated GIFs and WebPs stay animated when the target supports animation (GIF, WebP). For other targets the first frame is used, with a note.
 - Images are turned upright using their orientation tag, so phone photos never come out sideways.
 - Colour profiles are converted to sRGB so colours look the same everywhere.
+- TIFF is saved with lossless LZW compression by default, since it is mostly used for scans and archive copies. `--quality` makes a smaller JPEG-compressed TIFF at that quality, filled onto `--background`.
+- Notes are printed as `  Note: …` under the file's `✓` line and hidden by `--quiet`. A multi-page TIFF gets "only the first page was kept".
+- `transparent` isn't accepted as a `--background` colour, because filling lost transparency with it comes out black.
+- Colours (the 148 CSS names, hex and `rgb()`) are checked by konvertoj itself before any file is read, so a wrong `--background` fails once, at the start.
+- sharp's cache is turned off. On Windows, libvips keeps files in its cache locked, so originals couldn't be moved or deleted during a long batch, and konvertoj opens each file only once anyway.
 
 **Tests**
 - A 1×1 pixel image converts in every direction.
@@ -242,6 +249,12 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
   - Transparency is kept for PNG, WebP, AVIF and GIF output.
   - External files and links inside the SVG are not loaded, for safety.
   - SVG is input only (see Spec, out of scope).
+- BMP is written as 24-bit, with transparency filled with `--background` (white by default), like JPG. BMPs whose alpha channel is unused (all zero) are read as opaque, and bmp-ts's raw pixels are re-ordered by konvertoj because its RGBA option gives wrong colours for 8-bit palette BMPs.
+- SVGs are always read from memory, so images and URLs they link to are never loaded.
+- An SVG keeps its own size only when its root tag has both `width` and `height` (in any absolute unit). Otherwise it is drawn 512 pixels wide, keeping its `viewBox` shape. `--width` and `--height` set the drawing resolution, `--dpi` is capped at 7200, and sizes beyond sharp's maximum density fail with "would be too large to draw at that size".
+- libheif's own console messages are silenced, so damaged HEICs only show the plain-English "looks damaged" message.
+- Errors are only treated as file-system problems when they carry a system call, because some decoders throw Node.js range errors on malformed files, which mean the file looks damaged.
+- Tests check ICOs as standard ICO containers (a valid header and directory, 256 recorded as 0, PNG entries), the format browsers and Windows read. The burst fixture's main image is its first one, as Apple's encoder always marks it.
 
 **Tests**
 - A 0-byte `.heic` file fails with "is empty" (feature 5).
@@ -279,6 +292,12 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - For HEIC input, the main EXIF fields (camera, date, GPS, orientation) are read with `exifr` and written with `sharp`'s `withExif()`.
 - `--strip-metadata` works on every image mode and removes everything except the colour profile. The image is turned upright first, so removing the orientation tag never leaves it sideways.
 - `strip` is a tool mode that keeps the format and only removes metadata. Its default output name is `<name>-stripped.<ext>`.
+- TIFF can't hold camera details (a sharp limitation): a TIFF keeps XMP and its colour profile but loses the camera, date and location, which `--verbose` mentions.
+- Every output that can hold a colour profile gets sRGB, since colours are converted to sRGB (feature 6).
+- A HEIC's orientation is written as normal, because its pixels come out of the decoder already upright.
+- `strip` keeps JPG pictures exactly: an upright JPG has its detail blocks (EXIF, XMP, IPTC, comments, non-colour APP2) cut out with no re-compression, along with anything stored after the image, such as depth maps and motion-photo videos. Other formats are re-encoded without details: PNG, TIFF and lossless WebP losslessly, lossy WebP, AVIF and sideways JPGs at their default quality.
+- EXIF that `exifr` can't read cleanly is left out, with a `Note:` line, rather than copied in broken.
+- IPTC details aren't copied (sharp can't keep them), and are removed by `--strip-metadata` and `strip`.
 
 **Tests**
 - An image with no metadata converts without errors and gains none.
@@ -305,6 +324,10 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - **Enlarge:** `--scale 2x|4x` (default `2x`), using the same resize step with the high-quality Lanczos method, then a light sharpen to reduce softness.
 - Results larger than 16,384 pixels on a side are refused with a clear message.
 - Default output names: `<name>-resized.<ext>` and `<name>-enlarged.<ext>`.
+- `--fit contain` pads with transparency where the format keeps it, and with `--background` (white by default) for JPG, BMP and TIFF with a quality.
+- `resize --scale` needs a `%` (`50%`, `200%`), so a bare `50` can't be mistaken for pixels or a multiple.
+- `resize` and `enlarge` on an ICO write a single square icon at the new size, up to 256 pixels. Conversions to ICO still use `--sizes`.
+- Modes can declare rules across their options (such as "Give --width, --height or --scale"), checked before any file is read, so a wrong command fails at once.
 
 **Tests**
 - `resize` with no size option fails with "Give --width, --height or --scale".
@@ -340,6 +363,14 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - If the result isn't smaller than the original, nothing is written. The file is reported as "already optimised" and counted as skipped.
 - Each file shows before → after sizes, e.g. `hero.jpg 2.4 MB → 410 KB (−83%)`.
 - Default output name: `<name>-compressed.<ext>`.
+- GIFs are compressed by letting neighbouring frames share more pixels and palettes, which shrinks animated GIFs. A still GIF usually can't get smaller this way and is reported as "already optimised".
+- The `--target-size` search assumes bigger files at higher quality. That holds for JPG; for WebP, AVIF and palette PNG, whose sizes can dip at some qualities, the result is the highest fitting quality found within the 8 attempts.
+- 1 KB is 1024 bytes for `--target-size`, matching the sizes konvertoj prints.
+- Every mode's `✓` line ends with the size change, like `hero.jpg 2.4 MB → 410 KB (−83%)`.
+- Only one of `--quality`, `--level` and `--target-size` can be given.
+- Camera details are kept and an sRGB profile written, as in every conversion. For a tiny, well-compressed file that can make the result bigger, and the file is then left alone; `--strip-metadata` removes them.
+- Tools that keep the format follow the file's real format: a PNG named `screen.jpg` given to `compress`, `resize`, `enlarge` or `strip` is saved as `screen-compressed.png`, with a note.
+- When konvertoj's output is piped into a command that stops reading early, such as `head`, konvertoj stops printing but finishes its work and exits with its normal code.
 
 **Tests**
 - Compressing with no options uses the `medium` level.
@@ -370,6 +401,11 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - **Rotate:** `--angle <degrees>` works with any angle, positive or negative. Angles that aren't multiples of 90 enlarge the canvas and fill the corners with `--background` (transparent where supported, otherwise white). `--auto` turns the image upright using its orientation tag and then clears the tag.
 - **Flip:** `--direction horizontal|vertical`.
 - Default output names: `<name>-cropped.<ext>`, `<name>-rotated.<ext>` and `<name>-flipped.<ext>`.
+- `crop` needs both `--width` and `--height`; giving only one is rejected as incomplete.
+- `rotate --auto` skips photos that are already upright, and BMP and ICO files (which have no orientation tag), as "already upright". With `--angle` as well, the photo is turned upright and then rotated.
+- Animated images are rotated and flipped vertically frame by frame, keeping delays, loop count and frame order. An animated WebP rotated this way loses its EXIF and XMP. `--trim` on an animation uses the first frame's border for every frame.
+- Cropping, rotating and flipping re-encode the image at the format's default quality; there is no lossless JPEG rotation.
+- `crop`, `rotate` and `flip` on an ICO write a single icon at the edited image's larger side, padded with transparency to a square.
 
 **Tests**
 - `crop` with no options fails with a list of the ways to crop.
@@ -402,9 +438,16 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - **Info:** shows the format, file size, dimensions, colour space, whether it has transparency, frame count for animations, and a metadata summary (camera, date taken, whether GPS location is present). GPS coordinates are only shown with `--verbose`, so they aren't printed by accident.
 - **Colour picker:**
   - `--at x,y` reports the pixel at that point, counted from the top left starting at 0.
-  - `--palette <n>` reports the image's `n` main colours (default 5, maximum 16) using median-cut quantisation, from most to least common.
+  - `--palette <n>` reports the image's `n` main colours (the number is required, e.g. `--palette 5`; maximum 16) using median-cut quantisation, from most to least common.
   - Each colour is shown as HEX, RGB and HSL, with a coloured block in the terminal. Transparency is included when the colour isn't fully opaque.
 - Both print one section per file, `--json` prints the same as JSON for scripts, and neither writes a file, so `-o` isn't allowed.
+- With several files, each file's section is held until all are done and printed in the order given.
+- `--json` always prints a JSON array, even for one file, and nothing else on standard output. Verbose lines, skips and notes go to standard error.
+- `--quiet` doesn't hide the sections, because they are the command's result.
+- Colours are given as HEX, RGB and HSL only, with the alpha when a colour isn't fully opaque.
+- `info` and `colorpick` don't create files, so they don't accept `-o`, `--overwrite` or `--strip-metadata`, and `-o` fails with an explanation.
+- Main colours use a median-cut variant that cuts colour boxes at the mean, always making the split that reduces the total colour error most. Classic median cut gave wrong colours on JPGs, where compression leaves stray edge pixels.
+- The first Ctrl+C prints "Stopping. Press Ctrl+C again to stop at once." A second Ctrl+C removes temporary files and ends konvertoj immediately, with exit code 130.
 
 **Tests**
 - `info` with no file fails (feature 3), and `colorpick` with neither `--at` nor `--palette` fails with a usage hint.
@@ -448,6 +491,14 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
   - `--page 3`, `--page 1-5`, `--page 1,3,7` or `--page all` (default `all`).
   - `--dpi` sets sharpness (default 150, range 36–600).
   - Outputs are named `<name>-1.png`, `<name>-2.png` and so on, padded to sort properly (`-01` to `-12` for a 12-page PDF). `-o` is a folder.
+- `--page-size fit` uses one point per pixel, so the PDF holds every pixel; printed, such pages come out at 72 dpi.
+- On A4 and letter pages, a small image is drawn at its own size in the middle of the page, never enlarged.
+- Upright RGB or grayscale JPGs are embedded byte for byte. Everything else, including sideways and CMYK JPGs, is turned upright and converted: to PNG when it has transparency, otherwise to JPG at quality 90. Every image is fully decoded first, so a truncated image stops the PDF with its name.
+- PDF pages are exported onto `--background` (white by default), so transparent areas show that colour.
+- `-o` is always a folder for the `pdfto` modes, even for one page. `--dry-run` shows the base name, since the page count is only known once the PDF is read.
+- Exported pages over 16,384 pixels on a side, or over 268 million pixels, fail with advice to choose a lower `--dpi`.
+- A file found through a folder or pattern that is already in the mode's output format, and that the mode can't use, is skipped ("already a PNG"), or left out of a combined PDF with a note. Files named one by one still fail. A combined item's line, size and any failure count only the inputs it used.
+- The password-protected test PDF is made with Apple's PDFKit by `test/fixtures/make-fixtures.swift`. "Opens in common PDF readers" is checked by reading konvertoj's PDFs back with `pdf-lib` and drawing them with pdf.js, the engine behind Firefox's viewer.
 
 **Tests**
 - No images fails (feature 3), and a PDF with no pages fails with "has no pages".
@@ -493,6 +544,12 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - Non-interactive runs (scripts, CI) never prompt or download. They fail with instructions to run `konvertoj --install-video` first, or to install FFmpeg.
 - If the user is offline or declines, konvertoj explains both routes: run `--install-video` later, or install FFmpeg themselves. Image and PDF modes are never affected.
 - konvertoj runs FFmpeg as a separate process with arguments passed safely (never through a shell), and reads its progress output to show percentage and time left.
+- The download is pinned to `ffmpeg-static` release b6.1.1, with each build's SHA-256 stored in konvertoj. Windows on Arm has no build there, so it gets a message pointing to installing FFmpeg or `KONVERTOJ_FFMPEG_PATH`.
+- An explicit `--install-video` counts as the user's yes, so it downloads in a script or CI too. Video modes in scripts still never download. With an FFmpeg 5 or newer already installed, `--install-video` downloads nothing and says which FFmpeg it will use.
+- The prompt is on standard error, and Enter means yes, matching `(Y/n)`. Ctrl+C at the prompt or during the download stops with exit code 130 and saves nothing.
+- konvertoj searches the `PATH` folders itself, so on Windows an `ffmpeg.exe` sitting in the current folder can never run by accident.
+- A lock file, refreshed every few seconds, stops two runs downloading at once; a lock from a killed run is stale after 30 seconds. A download that stalls for 30 seconds, stops part-way or doesn't match its checksum leaves nothing behind.
+- Tests serve a small gzipped file from `127.0.0.1` instead of downloading, and use fake FFmpeg shell scripts, which are skipped on Windows.
 
 **Tests**
 - With no FFmpeg found and the prompt declined, the mode fails with both routes explained and exits with `1`.
@@ -524,9 +581,17 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - `--quality low|medium|high` (CRF 28, 23 and 18, default `medium`), `--resolution 1080p|720p|480p` (only ever scales down, keeping the shape), `--mute` drops the audio.
 - Video rotation (e.g. phone videos filmed upright) is kept.
 - Progress shows a percentage and time left.
+- Videos convert one at a time, since FFmpeg already uses every core. The progress line shows the overall count and the current video's percentage.
+- `--resolution` limits the shorter side, so `720p` makes a portrait phone video 720 × 1280. Videos are never enlarged.
+- Odd sizes are trimmed to even ones, as H.264 needs, so 321 × 181 becomes 320 × 180.
+- The first video and audio streams are kept, with AAC audio at 160 kb/s. Extra audio tracks, subtitles and chapters are left out.
+- The main video stream is converted: cover pictures stored as an extra video stream are skipped, and the default stream is preferred.
+- `--strip-metadata` removes the file's details, including any GPS location, and its chapters. Without it, details are kept.
+- When Ctrl+C stops a video, konvertoj waits for FFmpeg to exit before removing the half-written file, which Windows keeps locked until then.
+- CI runs `konvertoj --install-video` before the tests, so video tests run with the real add-on. They are skipped wherever no FFmpeg can be found.
 
 **Tests**
-- A video with no frames, or a 0-byte file, fails with "has no video".
+- A video with no frames fails with "has no video", and a 0-byte file fails with "is empty" (feature 5).
 - One iPhone MOV converts to an MP4 that plays in browsers and on Windows, macOS, Android and iOS.
 - A folder of MOV files converts one at a time, with an overall count and per-file progress.
 - `--resolution 720p` on a 4K video gives 1280 × 720, and on a 480p video leaves it unchanged with a note.
@@ -551,6 +616,13 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - `--bitrate 128k|192k|256k|320k` for MP3, M4A and OGG (default `192k`). WAV and FLAC are lossless and ignore it.
 - `--start` and `--end` accept `90`, `1:30` or `1:02:30`.
 - Progress shows a percentage and time left.
+- OGG uses Opus when FFmpeg has no Vorbis encoder (as in Homebrew's build); every OGG player plays it. When Opus is used, `--bitrate` is capped at 256k, with a note.
+- WAV and FLAC are 16-bit, holding exactly the same samples.
+- The first audio track is extracted; extra tracks are left out.
+- `--start` and `--end` are checked before any file is read, also for `togif`. `--end 0` on its own is rejected, because a missing `--start` counts as the start of the video.
+- MP3, WAV, FLAC, M4A and OGG files are recognised, so earlier results in a folder are skipped as "already an MP3", and an audio file given directly gets a clear message that konvertoj extracts audio from videos but doesn't convert between audio formats.
+- Modes can declare warnings about their options, printed once before any file is processed; WAV and FLAC use this to say `--bitrate` is ignored.
+- Files already in the output format get their names last, so in a folder with `b.webm` and `b.mp3`, `tomp3` names the new file `b (1).mp3` rather than `b (2).mp3`.
 
 **Tests**
 - A video with no audio track fails with "has no audio".
@@ -575,9 +647,12 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 **How it works**
 - Images use `sharp` (feature 6). Animated WebP stays animated, and other images become a still GIF.
 - Video uses FFmpeg with a two-pass palette, so colours look good: it builds the best 256 colours for the clip first, then uses them.
-- Video options: `--width` (default 480, keeping the shape), `--fps` (default 10, range 1–30), `--start` and `--end` (as in feature 16), `--speed 0.5–4` (default 1).
+- Video options: `--width` (default 480 for videos, keeping the shape; it also shrinks image GIFs, never enlarging them), `--fps` (default 10, range 1–30), `--start` and `--end` (as in feature 16), `--speed 0.5–4` (default 1).
 - Clips longer than 30 seconds need `--start`/`--end` or `--force`, because long GIFs are huge.
 - Video GIFs loop forever.
+- The 30-second limit is on the chosen section (`--start` to `--end`), before `--speed`.
+- A GIF found with only video options given (such as `--fps` on a folder holding earlier GIFs) is skipped as "already a GIF". A PNG given `--fps` fails with a clear message.
+- FFmpeg is needed only when an input is a video, so making a GIF from images never asks for the video add-on.
 
 **Tests**
 - `togif` on a 0-byte file fails with "is empty".
@@ -607,6 +682,10 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - A CI job packs konvertoj with `npm pack` and installs it on clean Windows, macOS (Intel and Apple Silicon) and Linux (x64 and arm64) runners, with nothing else installed. It then runs a smoke test of one mode from each group.
 - The install size is checked in CI against a budget, so a dependency can't quietly make it much bigger.
 - Start-up time is checked: `konvertoj --help` must respond in under half a second. Heavy libraries (PDF, HEIC) load only when a mode needs them.
+- The install-size budget is 150 MB, measured as the total size of the files in `node_modules` after a clean install of the packed release (112.5 MB on macOS Apple Silicon).
+- The add-on download uses Node.js's own proxy support (`http.setGlobalProxyFromEnv`, Node.js 24.14 and newer) with `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY`. On older Node.js 22, a failed connection with a proxy set says to set `NODE_USE_ENV_PROXY=1` (Node.js 22.21 and newer) or update Node.js. A proxy setting that isn't an address is named in a plain-English error. Excluding the download with `NO_PROXY` needs both `github.com` and `release-assets.githubusercontent.com`.
+- The smoke test times five runs of `--help` on the installed copy after a warm-up, and fails if the median is 500 ms or more. Its video steps hide any FFmpeg on the runner and download the add-on through a local proxy, so every system checks the real download, the proxy route and the first video conversion.
+- CI runs on `windows-latest`, `macos-15-intel`, `macos-latest`, `ubuntu-latest` and `ubuntu-24.04-arm`, each with Node.js 22, 24 and the latest version; the steps use `bash` everywhere. The packaging job also runs the proxy tests, which need Node.js 24 or newer. Tests may take up to 30 seconds each, for slow runners.
 
 **Tests**
 - A clean computer with only Node.js 22 runs `npx konvertoj` and sees the help screen.
@@ -631,6 +710,11 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - Every example in the README is run in CI against test files, so none of them are broken.
 - A demo GIF recorded with `vhs` (a scripted terminal recorder) sits at the top of the README.
 - `CHANGELOG.md` and `CONTRIBUTING.md` are added.
+- `npm run docs` also generates the README's common options from the same definitions as `--help`. Each mode's own options are left to `konvertoj -m <mode> --help`.
+- `docs/demo.tape` and `npm run demo` record the demo with vhs, and a CI job records it and checks it shows real output. `npm run docs` adds the image to the top of the README only once `docs/demo.gif` exists.
+- The examples test runs every `konvertoj` command in the README's tables and `bash` blocks, and every example of every mode, on generated files named as each command expects. `bash` blocks hold only runnable examples; command shapes, `--install-video`, `--list-modes` and `--help` go in `text` blocks or prose.
+- The test suite checks file and heading links offline, and CI's Linux job also fetches every web link, trying each twice. The README links only to pages that exist.
+- PDF examples name the PDF file (`-o receipts.pdf`), so the PDF isn't saved inside the folder being read.
 
 **Tests**
 - With a mode added to the registry and `npm run docs` not run, CI fails.
@@ -653,6 +737,13 @@ Tests are listed in **ZOMBIES** order: **Z**ero (nothing given or empty input), 
 - Publishing runs from GitHub Actions with npm provenance, triggered by a version tag, so releases are traceable to the source.
 - The package's `description`, `keywords`, `repository`, `homepage` and `bugs` fields are filled in, so it's easy to find on npm.
 - Version `1.0.0`.
+- `package.json` has `publishConfig` with public access and provenance. TypeScript stays at 6 (7 is a new compiler) and `@types/node` at 22, since konvertoj supports Node.js 22.
+- The first publish uses an `NPM_TOKEN` secret with two-factor bypass; afterwards npm's trusted publishing for `release.yml` replaces it.
+- The release workflow publishes only for a pushed tag, after checking the tag matches the version; run by hand, it only does `npm publish --dry-run`. It uses no npm cache. The test suite checks the packed name, version and files with `npm pack --dry-run`, which is offline.
+- `npm audit` runs in CI on Linux.
+- Paths outside the current folder, and the current folder itself, are shown in full rather than as `../../…`, including the `file` field of `--json`.
+- An output folder konvertoj created, with any parents it created, is removed again if nothing was saved in it, also after an error or the first Ctrl+C. A folder that existed before is never removed.
+- [docs/launch-checklist.md](docs/launch-checklist.md) records the check against Spec.md's goals and the maintainer's steps before and after publishing.
 
 **Tests**
 - With nothing changed since the last check, the release workflow's dry run passes.

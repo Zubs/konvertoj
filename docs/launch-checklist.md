@@ -25,7 +25,7 @@ Timings were measured on an Apple M1 Mac with Node.js 24.22.1, using a 12-megapi
 | Package details on npm | Met | `description`, `keywords`, `repository`, `homepage`, `bugs` and `publishConfig` are set (`test/package.test.ts`). |
 | Version 1.0.0 | Met | `package.json`, `konvertoj --version`, and `npm pack --dry-run` (`test/package.test.ts`). |
 | `npm audit` reports nothing | Met | `found 0 vulnerabilities`; CI's `check` job and the release workflow run `npm audit`. |
-| Dependencies up to date | Met, with an exception | All in-range updates are applied. TypeScript stays at 6 (7 is a new compiler) and `@types/node` at 22 (konvertoj supports Node.js 22); see Decisions.md. |
+| Dependencies up to date | Met, with an exception | All in-range updates are applied. TypeScript stays at 6 (7 is a new compiler) and `@types/node` at 22 (konvertoj supports Node.js 22); see feature 20 in Features.md. |
 | Publishing with provenance from a tag | Ready | `.github/workflows/release.yml`; nothing is published until the tag is pushed. |
 
 ## Before publishing

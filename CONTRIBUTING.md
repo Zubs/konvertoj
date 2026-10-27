@@ -49,7 +49,7 @@ This builds konvertoj and rewrites the generated parts of the README. The tests 
 ## How konvertoj is built
 
 - Features are built in the order in [Features.md](Features.md), each planned with [OpenSpec](https://github.com/Fission-AI/OpenSpec) in `openspec/`.
-- Changes from a plan, and why they were made, are listed in [Decisions.md](Decisions.md).
+- When a feature is built differently from its plan, its description in Features.md is updated to say how it works and why.
 - The coding rules are in [CLAUDE.md](CLAUDE.md): no comments unless the code is genuinely complicated, the simplest code that works, Node.js and existing libraries before new packages, errors in plain English that say how to fix them, heavy libraries loaded only when needed, and everything working on Windows, macOS and Linux.
 - Your original files are never changed. New files are written to a temporary file and renamed when complete.
 
