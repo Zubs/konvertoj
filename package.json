@@ -1,9 +1,37 @@
 {
   "name": "konvertoj",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Convert and edit images, PDFs, video and audio locally and privately from the command line.",
+  "keywords": [
+    "convert",
+    "converter",
+    "image",
+    "heic",
+    "jpg",
+    "png",
+    "webp",
+    "avif",
+    "pdf",
+    "gif",
+    "mp4",
+    "mp3",
+    "compress",
+    "resize",
+    "cli",
+    "local",
+    "private",
+    "offline"
+  ],
   "license": "MIT",
-  "author": "Zubs <zubair.idris.aweda@gmail.com>",
+  "author": "Zubs <zubairidrisaweda@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zubs/konvertoj.git"
+  },
+  "homepage": "https://github.com/Zubs/konvertoj#readme",
+  "bugs": {
+    "url": "https://github.com/Zubs/konvertoj/issues"
+  },
   "type": "module",
   "bin": {
     "konvertoj": "dist/cli.js"
@@ -42,5 +70,9 @@
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.4.299",
     "sharp": "^0.35.5"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

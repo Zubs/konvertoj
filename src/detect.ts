@@ -17,6 +17,7 @@ import {
   type Mode,
 } from "./modes/registry.js";
 import type { PlannedItem } from "./outputs.js";
+import { displayPath } from "./paths.js";
 
 export type CheckedItem =
   { inputs: InputFile[]; notes: string[] } | { skipped: string };
@@ -159,7 +160,7 @@ export async function checkItem(
 ): Promise<CheckedItem> {
   const naming = (input: InputFile, error: unknown) =>
     item.inputs.length > 1 && isUserError(error)
-      ? new UserError(`${path.relative(cwd, input.path)} ${error.message}`)
+      ? new UserError(`${displayPath(cwd, input.path)} ${error.message}`)
       : error;
 
   const checked: (InputFile & { format: string })[] = [];
@@ -187,7 +188,7 @@ export async function checkItem(
   }
   const notes = earlier.map(
     (input) =>
-      `left out ${path.relative(cwd, input.path)}, which is already ${withArticle(mode.output)}`,
+      `left out ${displayPath(cwd, input.path)}, which is already ${withArticle(mode.output)}`,
   );
   const usable = checked.filter((input) => !isEarlierResult(input));
   const formats = usable.map((input) => input.format);

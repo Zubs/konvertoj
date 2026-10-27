@@ -1,14 +1,17 @@
 import {
   copyFileSync,
+  existsSync,
   mkdirSync,
   readdirSync,
   readFileSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
+import { formatSize } from "../src/report.js";
 import { makeFolder } from "./support/folders.js";
 import { pixels, truncate, writeImage, writeNoise } from "./support/images.js";
 import { runIn as run } from "./support/run-main.js";
@@ -398,6 +401,33 @@ describe("images to PDF", () => {
       `Note: left out ${path.join("scans", "page1.pdf")}, which is already a PDF`,
     );
     expect(await pageSizes(path.join(folder, "again.pdf"))).toHaveLength(2);
+    const jpgBytes = ["page1.jpg", "page2.jpg"]
+      .map((name) => statSync(path.join(folder, "scans", name)).size)
+      .reduce((sum, size) => sum + size, 0);
+    expect(again.stdout).toContain(
+      `✓ ${path.join("scans", "page1.jpg")} and 1 other → again.pdf  ${formatSize(jpgBytes)} →`,
+    );
+  });
+
+  it("removes an output folder it made when nothing could be saved, and keeps one that existed", async () => {
+    const folder = makeFolder();
+    copyFileSync(
+      path.join(fixtures, "locked.pdf"),
+      path.join(folder, "locked.pdf"),
+    );
+    expect(
+      (await run(folder, "-m", "pdftopng", "locked.pdf", "-o", "pages"))
+        .exitCode,
+    ).toBe(1);
+    expect(existsSync(path.join(folder, "pages"))).toBe(false);
+    await run(folder, "-m", "pdftopng", "locked.pdf", "-o", "out/pages");
+    expect(existsSync(path.join(folder, "out"))).toBe(false);
+    mkdirSync(path.join(folder, "kept"));
+    await run(folder, "-m", "pdftopng", "locked.pdf", "-o", "kept");
+    expect(existsSync(path.join(folder, "kept"))).toBe(true);
+    await writeImage(folder, "a.jpg", "jpg");
+    await run(folder, "-m", "jpgtopdf", "a.jpg", "-o", "made/a.pdf");
+    expect(existsSync(path.join(folder, "made", "a.pdf"))).toBe(true);
   });
 
   it("turns receipt photos into one A4 PDF", async () => {

@@ -1,7 +1,7 @@
-import path from "node:path";
 import { damagedFile, isUserError, UserError } from "../errors.js";
 import type { RunContext } from "../modes/registry.js";
 import { openImage } from "./decode.js";
+import { displayPath } from "../paths.js";
 
 type Pixel = [number, number, number, number];
 
@@ -172,7 +172,7 @@ export async function pickColours(context: RunContext): Promise<void> {
   const { options } = context;
   const opened = await openImage(input, {}, false, { fit: "inside" });
   const blocks = context.colours && options.json !== true;
-  const file = path.relative(process.cwd(), input.path);
+  const file = displayPath(process.cwd(), input.path);
   const lines = [file];
   const data: Record<string, unknown> = { file };
 

@@ -1,5 +1,4 @@
 import { readFileSync } from "node:fs";
-import path from "node:path";
 import { parseArgs, type ParseArgsOptionsConfig } from "node:util";
 import { isUserError } from "./errors.js";
 import { commandShape, mainHelp, modeHelp, modeList } from "./help.js";
@@ -15,6 +14,7 @@ import { suggestMode } from "./modes/suggest.js";
 import type { OutputPlan } from "./outputs.js";
 import type { DownloadSource, FoundFfmpeg } from "./video/ffmpeg.js";
 import { Reporter, type Output } from "./report.js";
+import { displayPath } from "./paths.js";
 
 export type { Output } from "./report.js";
 
@@ -318,14 +318,14 @@ export async function main(
 function dryRunLines(plan: OutputPlan, cwd: string): string[] {
   return plan.items.flatMap((item) =>
     item.inputs.map((input) => {
-      const from = path.relative(cwd, input.path);
+      const from = displayPath(cwd, input.path);
       if (input.unreadable) {
         return `${from} → can't be read (${input.unreadable})`;
       }
       if (!item.output) {
         return `${from} → (prints details, no file)`;
       }
-      return `${from} → ${path.relative(cwd, item.output)}`;
+      return `${from} → ${displayPath(cwd, item.output)}`;
     }),
   );
 }

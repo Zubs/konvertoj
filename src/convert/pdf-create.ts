@@ -1,10 +1,10 @@
 import { readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { PDFDocument, type PDFImage } from "pdf-lib";
 import { damagedFile, isUserError, UserError } from "../errors.js";
 import type { InputFile } from "../inputs.js";
 import type { RunContext } from "../modes/registry.js";
 import { openImage } from "./decode.js";
+import { displayPath } from "../paths.js";
 
 const pageSizes: Record<string, [number, number]> = {
   a4: [595.28, 841.89],
@@ -109,7 +109,7 @@ export async function createPdf(context: RunContext): Promise<void> {
       const problem = isUserError(error) ? error : damagedFile(error);
       if (context.inputs.length > 1) {
         throw new UserError(
-          `${path.relative(process.cwd(), input.path)} ${problem.message}`,
+          `${displayPath(process.cwd(), input.path)} ${problem.message}`,
           { cause: error },
         );
       }

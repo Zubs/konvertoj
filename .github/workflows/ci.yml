@@ -18,6 +18,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Audit the dependencies
+        if: runner.os == 'Linux'
+        run: npm audit
       - run: npm run check
       - name: Check the README's links
         if: runner.os == 'Linux'

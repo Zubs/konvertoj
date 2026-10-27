@@ -1,10 +1,10 @@
 import { stat } from "node:fs/promises";
-import path from "node:path";
 import { formatLabels } from "../modes/formats.js";
 import type { RunContext } from "../modes/registry.js";
 import { formatSize } from "../report.js";
 import { openImage, type OpenedImage } from "./decode.js";
 import { cameraDetails, type CameraDetails } from "./metadata.js";
+import { displayPath } from "../paths.js";
 
 const colourSpaces: Record<string, string> = {
   srgb: "sRGB",
@@ -81,7 +81,7 @@ export async function showInfo(context: RunContext): Promise<void> {
   const transparency = await hasTransparency(opened);
   const details = await cameraDetails(input, opened);
   const location = locationOf(details, context.options.verbose === true);
-  const file = path.relative(process.cwd(), input.path);
+  const file = displayPath(process.cwd(), input.path);
   const lines = [
     `Format: ${shortLabel(format)}`,
     `File size: ${formatSize(fileSize)}`,

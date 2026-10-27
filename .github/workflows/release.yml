@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency: release
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - name: The tag matches the version
+        if: github.event_name == 'push'
+        run: |
+          expected="v$(node -p "require('./package.json').version")"
+          test "$expected" = "$GITHUB_REF_NAME" || { echo "The tag is $GITHUB_REF_NAME, but package.json says $expected."; exit 1; }
+      - run: npm audit
+      - run: npm run check
+      - run: npm run build
+      - name: Install the video add-on
+        run: node dist/cli.js --install-video
+      - run: npm test
+      - name: The README is up to date
+        run: node scripts/update-readme.js --check
+      - name: Dry run
+        if: github.event_name == 'workflow_dispatch'
+        run: npm publish --dry-run
+      - name: Publish
+        if: github.event_name == 'push'
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

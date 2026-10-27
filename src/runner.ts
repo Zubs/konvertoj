@@ -5,7 +5,11 @@ import { checkItem, withArticle } from "./detect.js";
 import { isUserError } from "./errors.js";
 import { extensionsFor, formatLabels } from "./modes/formats.js";
 import { needsFfmpeg, type Mode } from "./modes/registry.js";
-import { prepareOutputFolders, writeOutputFile } from "./output-files.js";
+import {
+  prepareOutputFolders,
+  removeEmptyFolders,
+  writeOutputFile,
+} from "./output-files.js";
 import type { OutputPlan, PlannedItem } from "./outputs.js";
 import type { BatchResult, Reporter, Section } from "./report.js";
 
@@ -48,7 +52,20 @@ export async function runBatch(
   settings: BatchSettings,
   reporter: Reporter,
 ): Promise<BatchResult> {
-  await prepareOutputFolders(plan.items, settings.cwd);
+  const createdFolders = await prepareOutputFolders(plan.items, settings.cwd);
+  try {
+    return await runItems(mode, plan, settings, reporter);
+  } finally {
+    await removeEmptyFolders(createdFolders);
+  }
+}
+
+async function runItems(
+  mode: Mode & Required<Pick<Mode, "run">>,
+  plan: OutputPlan,
+  settings: BatchSettings,
+  reporter: Reporter,
+): Promise<BatchResult> {
   const result: BatchResult = {
     converted: 0,
     failed: [],
@@ -73,6 +90,7 @@ export async function runBatch(
     let output = item.output ?? "";
     const startedAt = Date.now();
     reporter.started(item);
+    let used = item;
     try {
       let inputs = item.inputs;
       const notes: string[] = [];
@@ -89,6 +107,7 @@ export async function runBatch(
           return;
         }
         inputs = checked.inputs;
+        used = { ...item, inputs };
         notes.push(...checked.notes);
       }
       const realFormat = inputs[0]?.format;
@@ -140,13 +159,13 @@ export async function runBatch(
         reporter.skipped(item, outcome?.skipped ?? "nothing was written");
         return;
       }
-      const before = await totalSize(item.inputs.map((input) => input.path));
+      const before = await totalSize(inputs.map((input) => input.path));
       const after = await totalSize(savedPaths);
       result.converted++;
       result.sizeBefore += before;
       result.sizeAfter += after;
       reporter.succeeded(
-        { ...item, output: savedPaths[0] },
+        { ...used, output: savedPaths[0] },
         before,
         after,
         notes,
@@ -157,8 +176,8 @@ export async function runBatch(
         return;
       }
       const reason = isUserError(error) ? error.message : unexpectedProblem;
-      result.failed.push({ item, reason });
-      reporter.failed(item, reason, error);
+      result.failed.push({ item: used, reason });
+      reporter.failed(used, reason, error);
     }
   };
 
