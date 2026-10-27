@@ -2,9 +2,9 @@
 
 All notable changes to konvertoj are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and konvertoj uses [Semantic Versioning](https://semver.org/).
 
-## 1.0.0
+## 1.0.0 - 2026-10-27
 
-The first release. Its date is added in the last commit before the `v1.0.0` tag.
+The first release.
 
 ### Added
 
