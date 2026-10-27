@@ -87,7 +87,24 @@ async function serve(body: Buffer, { cutShort = false } = {}) {
 
 async function startProxy({ refuse = false } = {}) {
   const targets: string[] = [];
-  const server = createServer();
+  const server = createServer((request, response) => {
+    const target = new URL(request.url ?? "");
+    targets.push(target.host);
+    if (refuse) {
+      response.writeHead(502).end();
+      return;
+    }
+    const upstream = http.request(
+      target,
+      { method: request.method, headers: request.headers },
+      (answer) => {
+        response.writeHead(answer.statusCode ?? 502, answer.headers);
+        answer.pipe(response);
+      },
+    );
+    upstream.on("error", () => response.destroy());
+    request.pipe(upstream);
+  });
   server.on("connect", (request, client: Socket, head: Buffer) => {
     const target = request.url ?? "";
     targets.push(target);
